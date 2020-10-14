@@ -1,0 +1,7 @@
+{
+  "name": "nutrient_tracker",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react"
+}
