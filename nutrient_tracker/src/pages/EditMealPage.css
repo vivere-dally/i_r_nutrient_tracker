@@ -1,0 +1,40 @@
+#edit-meal-page ion-item {
+  --inner-padding-end: 0;
+  --background: transparent;
+}
+
+#edit-meal-page ion-label {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+#edit-meal-page ion-item h2 {
+  font-weight: 600;
+}
+
+#edit-meal-page ion-item .date {
+  float: right;
+  align-items: center;
+  display: flex;
+}
+
+#edit-meal-page ion-item ion-icon {
+  font-size: 42px;
+  margin-right: 8px;
+}
+
+#edit-meal-page ion-item ion-note {
+  font-size: 15px;
+  margin-right: 12px;
+  font-weight: normal;
+}
+
+#edit-meal-page h1 {
+  margin: 0;
+  font-weight: bold;
+  font-size: 22px;
+}
+
+#edit-meal-page p {
+  line-height: 22px;
+}

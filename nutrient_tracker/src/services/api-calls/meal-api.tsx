@@ -1,39 +1,37 @@
 import axios from 'axios';
-import { getLogger, execWithLogs } from './utils';
-import { environment } from '../environments/environment';
-import { Meal } from '../domain/model/meal';
+import { getLogger, execWithLogs } from '../utils';
+import { environment } from '../../environments/environment';
+import { Meal } from '../../domain/model/meal';
 
-//#region Setup
+const log = getLogger('services/api-calls/meal-api');
 
-const log = getLogger('services/meal-api');
 const axiosInstance = axios.create({
     baseURL: environment.urlApi
 });
+
 const config = {
     headers: {
         'Content-Type': 'application/json'
     }
 };
 
-//#endregion
-
-export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
+export const saveMealApi: (meal: Meal) => Promise<Meal> = meal => {
     return execWithLogs(axiosInstance.post("/meal", meal, config), 'saveMeal', log);
 }
 
-export const updateMeal: (meal: Meal) => Promise<Meal> = meal => {
+export const updateMealApi: (meal: Meal) => Promise<Meal> = meal => {
     return execWithLogs(axiosInstance.put(`/meal/${meal.id}`, meal, config), 'updateMeal', log);
 }
 
-export const deleteMeal: (mealId: number) => Promise<Meal> = mealId => {
+export const deleteMealApi: (mealId: number) => Promise<Meal> = mealId => {
     return execWithLogs(axiosInstance.delete(`/meal/${mealId}`, config), 'deleteMeal', log);
 }
 
-export const getMealById: (mealId: number) => Promise<Meal> = mealId => {
+export const getMealByIdApi: (mealId: number) => Promise<Meal> = mealId => {
     return execWithLogs(axiosInstance.get(`/meal/${mealId}`, config), 'getMealById', log);
 }
 
-export const getMeals: () => Promise<Meal[]> = () => {
+export const getMealsApi: () => Promise<Meal[]> = () => {
     return execWithLogs(axiosInstance.get(`/meal`, config), 'getMeals', log);
 }
 

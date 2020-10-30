@@ -1,14 +1,16 @@
-import { IonContent, IonHeader, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
+import { IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
+import { add } from "ionicons/icons";
 import React, { useContext } from "react";
 import { RouteComponentProps } from "react-router";
 import MealListItem from "../components/MealListItem";
-import { MealContext } from "../reducers/meal-reducer";
-import { getLogger } from "../services/utils";
+import { MealContext } from "../services/providers/meal-provider";
+import { ApiAction, getLogger } from "../services/utils";
+import './MealPage.css';
 
-const log = getLogger('pages/Meal')
+const log = getLogger('pages/MealPage')
 
-const Meal: React.FC<RouteComponentProps> = ({ history }) => {
-    const { meals, fetching, fetchingError } = useContext(MealContext);
+const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
+    const { data, executing, apiAction, apiActionError } = useContext(MealContext);
     log('render');
     return (
         <IonPage id="meal-page">
@@ -27,12 +29,12 @@ const Meal: React.FC<RouteComponentProps> = ({ history }) => {
                     </IonToolbar>
                 </IonHeader>
 
-                <IonLoading isOpen={fetching} message="Fetching meals..." />
+                <IonLoading isOpen={executing && apiAction === ApiAction.GET} message="Fetching meals..." />
                 {
-                    meals && (
+                    !executing && !apiActionError && data && (
                         <IonList>
                             {
-                                meals
+                                data
                                     .sort((a, b) => { return new Date(b.mealDate).getTime() - new Date(a.mealDate).getTime(); })
                                     .map(meal =>
                                         <MealListItem key={meal.id?.toString()} meal={meal} />
@@ -42,13 +44,19 @@ const Meal: React.FC<RouteComponentProps> = ({ history }) => {
                     )
                 }
                 {
-                    fetchingError && (
-                        <IonLabel>{fetchingError.message || 'Failed to fetch meals'}</IonLabel>
+                    (!executing && apiAction === ApiAction.GET && apiActionError) && (
+                        <IonLabel>{apiActionError.message || 'Failed to fetch meals'}</IonLabel>
                     )
                 }
+
+                <IonFab slot="fixed" vertical="bottom" horizontal="end">
+                    <IonFabButton onClick={() => history.push('/meal/-1000000')}>
+                        <IonIcon icon={add} />
+                    </IonFabButton>
+                </IonFab>
             </IonContent>
         </IonPage>
     );
 }
 
-export default Meal;
+export default MealPage;

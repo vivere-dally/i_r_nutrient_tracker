@@ -23,21 +23,36 @@ import '@ionic/react/css/display.css';
 
 /* Theme variables */
 import './theme/variables.css';
-import Meal from './pages/Meal';
-import { MealProvider } from './services/meal-provider';
+import MealPage from './pages/MealPage';
+import { MealProvider } from './services/providers/meal-provider';
+import { FoodProvider } from './services/providers/food-provider';
+import { NutrientProvider } from './services/providers/nutrient-provider';
+import EditMealPage from './pages/EditMealPage';
 
 const App: React.FC = () => (
   <IonApp>
-    <MealProvider>
-      <IonReactRouter>
-        <IonRouterOutlet>
-          <Route path="/home" component={Home} exact={true} />
-          <Route path="/meal" component={Meal} exact={true} />
-          <Route path="/message/:id" component={ViewMessage} exact={true} />
-          <Route exact path="/" render={() => <Redirect to="/meal" />} />
-        </IonRouterOutlet>
-      </IonReactRouter>
-    </MealProvider>
+    <IonReactRouter>
+      <IonRouterOutlet>
+        {/* NUTRIENT PROVIDER */}
+        <NutrientProvider>
+          {/* FOOD PROVIDER */}
+          <FoodProvider>
+            {/* FOOD PROVIDER ROUTES */}
+            {/* <Route path="/food" component={FoodPage} exact={true} /> */}
+            {/* <Route path="/food/:id" component={FoodPage} exact={true} /> */}
+            {/* MEAL PROVIDER */}
+            <MealProvider>
+              {/* MEAL PROVIDER ROUTES */}
+              <Route path="/meal" component={MealPage} exact={true} />
+              <Route path="/meal/:id" component={EditMealPage} exact={true} />
+              <Route exact path="/" render={() => <Redirect to="/meal" />} />
+            </MealProvider>
+          </FoodProvider>
+        </NutrientProvider>
+
+      </IonRouterOutlet>
+    </IonReactRouter>
+
   </IonApp>
 );
 
