@@ -57,7 +57,7 @@ export const mealReducer: (state: MealState, action: ActionProps) => MealState =
                 meals[index] = meal;
             }
 
-            return { ...state, meals, saving: false };
+            return { ...state, meals: meals, saving: false };
         case SAVE_MEAL_FAILED:
             log(SAVE_MEAL_FAILED)
             return { ...state, savingError: payload.error, saving: false };

@@ -1,6 +1,7 @@
-import { IonContent, IonHeader, IonItem, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
+import { IonContent, IonHeader, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
 import React, { useContext } from "react";
 import { RouteComponentProps } from "react-router";
+import MealListItem from "../components/MealListItem";
 import { MealContext } from "../reducers/meal-reducer";
 import { getLogger } from "../services/utils";
 
@@ -17,15 +18,25 @@ const Meal: React.FC<RouteComponentProps> = ({ history }) => {
                 </IonToolbar>
             </IonHeader>
 
-            <IonContent>
+            <IonContent fullscreen>
+                <IonHeader collapse="condense">
+                    <IonToolbar>
+                        <IonTitle size="large">
+                            Meals
+                        </IonTitle>
+                    </IonToolbar>
+                </IonHeader>
+
                 <IonLoading isOpen={fetching} message="Fetching meals..." />
                 {
                     meals && (
                         <IonList>
                             {
-                                meals.map(({ id, comment, mealDate }) =>
-                                    <IonLabel key={id?.toString()} id={id?.toString()}>{id + " " + comment + " " + mealDate}</IonLabel>
-                                )
+                                meals
+                                    .sort((a, b) => { return new Date(b.mealDate).getTime() - new Date(a.mealDate).getTime(); })
+                                    .map(meal =>
+                                        <MealListItem key={meal.id?.toString()} meal={meal} />
+                                    )
                             }
                         </IonList>
                     )
