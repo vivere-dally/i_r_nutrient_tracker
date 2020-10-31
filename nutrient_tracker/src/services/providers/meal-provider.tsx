@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useReducer } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import PropTypes from 'prop-types';
 import { actionBuilder, ActionState, ApiAction, getLogger } from '../utils';
 import { Meal } from '../../domain/model/meal';
-import { deleteMealApi, getMealByIdApi, getMealsApi, saveMealApi, updateMealApi } from '../api-calls/meal-api';
+import { deleteMealApi, getMealByIdApi, getMealsApi, newMealsWebSocket, saveMealApi, updateMealApi } from '../api-calls/meal-api';
 import { getReducer, State } from '../reducer';
 
 export type MealParamToPromise = (meal: Meal) => Promise<any>;
@@ -33,9 +33,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     // States
     const [state, dispatch] = useReducer(reducer, mealInitialState);
     const { data, executing, apiAction, apiActionError } = state;
+    let ws: WebSocket;
 
     // Effects
     useEffect(getMealsEffect, []);
+    useEffect(wsEffect, []);
 
     // Callbacks
     const saveMeal = useCallback<MealParamToPromise>(saveMealCallback, []);
@@ -82,7 +84,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             dispatch({ type: buildAction(ApiAction.SAVE, ActionState.STARTED) });
             const savedMeal = await saveMealApi(meal);
             log('saveMealCallback - success');
-            dispatch({ type: buildAction(ApiAction.SAVE, ActionState.SUCCEEDED), payload: savedMeal });
+            const savedMealSucceeded = { type: buildAction(ApiAction.SAVE, ActionState.SUCCEEDED), payload: savedMeal };
+            ws?.send(JSON.stringify(savedMealSucceeded));
+            dispatch(savedMealSucceeded);
         }
         catch (error) {
             log('saveMealCallback - failure');
@@ -96,7 +100,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             dispatch({ type: buildAction(ApiAction.UPDATE, ActionState.STARTED) });
             const updatedMeal = await updateMealApi(meal);
             log('updateMealCallback - success');
-            dispatch({ type: buildAction(ApiAction.UPDATE, ActionState.SUCCEEDED), payload: updatedMeal });
+            const updatedMealSucceeded = { type: buildAction(ApiAction.UPDATE, ActionState.SUCCEEDED), payload: updatedMeal };
+            ws?.send(JSON.stringify(updatedMealSucceeded));
+            dispatch(updatedMealSucceeded);
         }
         catch (error) {
             log('updateMealCallback - failure');
@@ -110,7 +116,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             dispatch({ type: buildAction(ApiAction.DELETE, ActionState.STARTED) });
             const deletedMeal = await deleteMealApi(mealId);
             log('deleteMealCallback - success');
-            dispatch({ type: buildAction(ApiAction.DELETE, ActionState.SUCCEEDED), payload: deletedMeal });
+            const deletedMealSucceeded = { type: buildAction(ApiAction.DELETE, ActionState.SUCCEEDED), payload: deletedMeal };
+            ws?.send(JSON.stringify(deletedMealSucceeded));
+            dispatch(deletedMealSucceeded);
         }
         catch (error) {
             log('deleteMealCallback - failure');
@@ -129,6 +137,27 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         catch (error) {
             log('getMealByIdCallback - failure');
             dispatch({ type: buildAction(ApiAction.GET_ONE, ActionState.FAILED), payload: error });
+        }
+    }
+
+    function wsEffect() {
+        let cancelled = false;
+        log('wsEffect - connecting');
+        let webSocket = newMealsWebSocket(message => {
+            if (cancelled) {
+                return;
+            }
+
+            const { type, payload } = message;
+            log(`wsEffect - received ${payload}`);
+            dispatch({ type: type, payload: payload });
+        });
+        ws = webSocket;
+
+        return () => {
+            log('wsEffect - disconnectiong');
+            cancelled = true;
+            webSocket.close();
         }
     }
 }

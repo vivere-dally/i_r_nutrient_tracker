@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { getLogger, execWithLogs } from '../utils';
+import { getLogger, execWithLogs, ApiAction } from '../utils';
 import { environment } from '../../environments/environment';
 import { Meal } from '../../domain/model/meal';
+import { ActionProps } from '../reducer';
 
 const log = getLogger('services/api-calls/meal-api');
 
@@ -35,10 +36,10 @@ export const getMealsApi: () => Promise<Meal[]> = () => {
     return execWithLogs(axiosInstance.get(`/meal`, config), 'getMeals', log);
 }
 
-export const newMealsWebSocket = (onMessage: (data: string) => void) => {
-    const ws = new WebSocket(`${environment.wsUrlApi}/meal-notifications`)
+export const newMealsWebSocket = (onMessage: (data: ActionProps) => void) => {
+    const ws = new WebSocket(`${environment.wsUrlApi}topic/meal/notification`)
     ws.onopen = () => {
-        log('newMealsWebSocket - opopen');
+        log('newMealsWebSocket - onopen');
     };
 
     ws.onclose = () => {
@@ -54,7 +55,5 @@ export const newMealsWebSocket = (onMessage: (data: string) => void) => {
         onMessage(JSON.parse(messageEvent.data));
     };
 
-    return () => {
-        ws.close();
-    }
+    return ws;
 }
