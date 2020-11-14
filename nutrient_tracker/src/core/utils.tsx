@@ -28,7 +28,8 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
                 return { ...state, executing: true, actionType: actionType, actionError: null };
             case ActionState.SUCCEEDED:
                 switch (actionType) {
-                    case ActionType.GET_ONE || ActionType.GET:
+                    case ActionType.GET_ONE:
+                    case ActionType.GET:
                         return { ...state, executing: false, data: data }
                     case ActionType.SAVE:
                         return {
@@ -77,4 +78,9 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
     }
 
     return reducer;
+}
+
+export function getDateWithOffset(date: string): string {
+    var offset = new Date().getTimezoneOffset();
+    return new Date(new Date(date).getTime() - offset * 60000).toISOString();
 }

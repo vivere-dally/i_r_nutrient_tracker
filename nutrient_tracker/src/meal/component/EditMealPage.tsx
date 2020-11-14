@@ -1,10 +1,9 @@
-import { IonBackButton, IonButton, IonButtons, IonCheckbox, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonPage, IonSelect, IonSelectOption, IonTitle, IonToolbar } from '@ionic/react'
+import { IonBackButton, IonButton, IonButtons, IonCheckbox, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonPage, IonToolbar } from '@ionic/react'
 import { trash } from 'ionicons/icons'
-import { stringify } from 'querystring'
 import React from 'react'
 import { useContext, useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router'
-import { getLogger } from '../../core/utils'
+import { getDateWithOffset, getLogger } from '../../core/utils'
 import { Meal } from '../meal'
 import { MealContext } from '../meal-provider'
 import '../style/EditMealPage.css'
@@ -32,7 +31,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
         setMeal(meal);
         if (meal) {
             setComment(meal.comment || "");
-            setDate(meal.date || new Date().toISOString());
+            setDate(meal.date || getDateWithOffset(new Date().toISOString()));
             setFoods(meal.foods || "");
             setEaten(meal.eaten || false);
             setPrice(meal.price || 0.0);
@@ -41,20 +40,21 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
     // Handlers
     const handleSaveOrUpdateMeal = () => {
+        const actualDate = getDateWithOffset(date)
         const editedMeal = meal ?
-            { ...meal, comment: comment, date: date, foods: foods, eaten: eaten, price: price } :
-            { comment: comment, date: date, foods: foods, eaten: eaten, price: price };
+            { ...meal, comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price } :
+            { comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price };
 
         if (editedMeal.id) {
-            mealContext.update && mealContext.update(editedMeal).then(() => history.goBack());
+            mealContext.update_ && mealContext.update_(editedMeal).then(() => history.goBack());
         }
         else {
-            mealContext.save && mealContext.save(editedMeal).then(() => history.goBack());
+            mealContext.save_ && mealContext.save_(editedMeal).then(() => history.goBack());
         }
     }
 
     const handleDeleteMeal = () => {
-        meal && meal.id && mealContext.delete && mealContext.delete(meal.id).then(() => history.goBack());
+        meal && meal.id && mealContext.delete_ && mealContext.delete_(meal.id).then(() => history.goBack());
     }
 
     return (
@@ -62,7 +62,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
             <IonHeader translucent>
                 <IonToolbar>
                     <IonButtons>
-                        <IonBackButton text="Meals" defaultHref="/meal" />
+                        <IonBackButton text="Meals" defaultHref="/meals" />
                     </IonButtons>
                     <IonButtons slot="end">
                         <IonButton onClick={handleSaveOrUpdateMeal}>Save</IonButton>
@@ -78,7 +78,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
                 <IonItem>
                     <IonLabel>Date</IonLabel>
-                    <IonDatetime pickerFormat="MMM DD, YYYY HH:mm" displayFormat="MMM DD, YYYY HH:mm" value={date} onIonChange={e => setDate(e.detail.value && new Date(e.detail.value).toISOString() || new Date().toISOString())} />
+                    <IonDatetime pickerFormat="MMM DD, YYYY HH:mm" displayFormat="MMM DD, YYYY HH:mm" value={date} onIonChange={e => setDate((e.detail.value === null || e.detail.value === undefined) ? new Date().toISOString() : new Date(e.detail.value).toISOString())} />
                 </IonItem>
 
                 <IonItem>
@@ -88,7 +88,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
                 <IonItem>
                     <IonLabel>IsEaten</IonLabel>
-                    <IonCheckbox value={eaten.toString()} onIonChange={e => setFoods(e.detail.value || false)} />
+                    <IonCheckbox value={eaten.toString()} onIonChange={e => setEaten(e.detail.value || false)} />
                 </IonItem>
 
                 <IonItem>

@@ -30,10 +30,10 @@ const App: React.FC = () => (
     <IonReactRouter>
       <IonRouterOutlet>
         <MealProvider>
-          {/* MEAL PROVIDER ROUTES */}
-          <Route path="/meal" component={MealPage} exact={true} />
-          <Route path="/meal/:id" component={EditMealPage} exact={true} />
-          <Route exact path="/" render={() => <Redirect to="/meal" />} />
+          <Route path="/meals" component={MealPage} exact={true} />
+          <Route path="/meals/:id" component={EditMealPage} exact={true} />
+          <Route path="/meal" component={EditMealPage} exact={true} />
+          <Route exact path="/" render={() => <Redirect to="/meals" />} />
         </MealProvider>
       </IonRouterOutlet>
     </IonReactRouter>

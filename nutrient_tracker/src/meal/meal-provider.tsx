@@ -7,10 +7,10 @@ import { ActionState, ActionType } from "../core/action";
 import { deleteMeal, getMealById, getMeals, newMealWebSocket, saveMeal, updateMeal } from "./meal-api";
 
 interface MealState extends State<Meal, number> {
-    save?: MealParamToPromise,
-    update?: MealParamToPromise,
-    delete?: MealIdParamToPromise,
-    get?: MealIdParamToPromise
+    save_?: MealParamToPromise,
+    update_?: MealParamToPromise,
+    delete_?: MealIdParamToPromise,
+    get_?: MealIdParamToPromise
 }
 
 const log = getLogger('meal/meal-provider');
@@ -38,12 +38,12 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     useEffect(wsEffect, []);
 
     // Callbacks
-    const _save = useCallback<MealParamToPromise>(saveMealCallback, []);
-    const _update = useCallback<MealParamToPromise>(updateMealCallback, []);
-    const _delete = useCallback<MealIdParamToPromise>(deleteMealCallback, []);
-    const _getById = useCallback<MealIdParamToPromise>(getMealByIdCallback, []);
+    const save_ = useCallback<MealParamToPromise>(saveMealCallback, []);
+    const update_ = useCallback<MealParamToPromise>(updateMealCallback, []);
+    const delete_ = useCallback<MealIdParamToPromise>(deleteMealCallback, []);
+    const getById_ = useCallback<MealIdParamToPromise>(getMealByIdCallback, []);
 
-    const value = { data, executing, actionType, actionError, _save, _update, _delete, _getById };
+    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_ };
 
     log('MealProvider - return');
     return (
@@ -56,9 +56,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('getMealByIdCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET_ONE });
-            const receivedMeal = await getMealById(mealId);
+            const data = await getMealById(mealId);
             log('getMealByIdCallback - success');
-            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: receivedMeal });
+            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: data });
         }
         catch (error) {
             log('getMealByIdCallback - failure');
@@ -77,10 +77,10 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             try {
                 log('getMealsEffect - start');
                 dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
-                const meals = await getMeals();
+                const data = await getMeals();
                 log('getMealsEffect - success');
                 if (!cancelled) {
-                    dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: meals });
+                    dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
                 }
             }
             catch (error) {
@@ -94,9 +94,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('saveMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.SAVE });
-            const savedMeal = await saveMeal(meal);
-            log('saveMealCallback - success');
-            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.SAVE, data: savedMeal });
+            saveMeal(meal);
         }
         catch (error) {
             log('saveMealCallback - failure');
@@ -108,9 +106,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('updateMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.UPDATE });
-            const updatedMeal = await updateMeal(meal);
-            log('updateMealCallback - success');
-            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: updatedMeal });
+            updateMeal(meal);
         }
         catch (error) {
             log('updateMealCallback - failure');
@@ -122,9 +118,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('deleteMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.DELETE });
-            const deletedMeal = await deleteMeal(mealId);
-            log('deleteMealCallback - success');
-            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.DELETE, data: deletedMeal });
+            deleteMeal(mealId);
         }
         catch (error) {
             log('deleteMealCallback - failure');
@@ -140,7 +134,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                 return;
             }
 
-            log(`wsEffect - received ${payload}`);
+            log(`wsEffect - received ${payload.data}`);
             dispatch({ ...payload, actionState: ActionState.SUCCEEDED });
         });
 

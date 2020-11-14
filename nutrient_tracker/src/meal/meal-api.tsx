@@ -17,23 +17,23 @@ const config = {
 };
 
 export const getMealById: (mealId: number) => Promise<Meal> = mealId => {
-    return execWithLogs(axiosInstance.get(`/meal/${mealId}`, config), 'getMealById', log);
+    return execWithLogs(axiosInstance.get<Meal>(`/meal/${mealId}`, config).then(response => response.data), 'getMealById', log);
 }
 
 export const getMeals: () => Promise<Meal[]> = () => {
-    return execWithLogs(axiosInstance.get(`/meal`, config), 'getMeals', log);
+    return execWithLogs(axiosInstance.get<Meal[]>(`/meal`, config).then(response => response.data), 'getMeals', log);
 }
 
 export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
-    return execWithLogs(axiosInstance.post("/meal", meal, config), 'saveMeal', log);
+    return execWithLogs(axiosInstance.post<Meal>("/meal", meal, config).then(response => response.data), 'saveMeal', log);
 }
 
 export const updateMeal: (meal: Meal) => Promise<Meal> = meal => {
-    return execWithLogs(axiosInstance.put(`/meal/${meal.id}`, meal, config), 'updateMeal', log);
+    return execWithLogs(axiosInstance.put<Meal>(`/meal/${meal.id}`, meal, config).then(response => response.data), 'updateMeal', log);
 }
 
 export const deleteMeal: (mealId: number) => Promise<Meal> = mealId => {
-    return execWithLogs(axiosInstance.delete(`/meal/${mealId}`, config), 'deleteMeal', log);
+    return execWithLogs(axiosInstance.delete<Meal>(`/meal/${mealId}`, config).then(response => response.data), 'deleteMeal', log);
 }
 
 export const newMealWebSocket =

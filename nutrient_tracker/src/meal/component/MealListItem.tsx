@@ -10,7 +10,7 @@ interface MealListItemProps {
 
 const MealListItem: React.FC<MealListItemProps> = ({ meal }) => {
     return (
-        <IonItem routerLink={`/meal/${meal.id}`} detail={false}>
+        <IonItem routerLink={`/meals/${meal.id}`} detail={false}>
             <IonLabel className="ion-text-wrap">
                 <h2>
                     {moment(meal.date).fromNow()}
