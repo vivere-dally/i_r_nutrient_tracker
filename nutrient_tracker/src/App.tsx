@@ -24,17 +24,26 @@ import './theme/variables.css';
 import { MealProvider } from './meal/meal-provider';
 import MealPage from './meal/component/MealPage';
 import EditMealPage from './meal/component/EditMealPage';
+import { AuthenticationProvider } from './authentication/authentication-provider';
+import { AuthenticationPage } from './authentication/component/AuthenticationPage';
+import { PrivateRoute } from './authentication/component/PrivateRoute';
 
 const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
       <IonRouterOutlet>
-        <MealProvider>
-          <Route path="/meals" component={MealPage} exact={true} />
-          <Route path="/meals/:id" component={EditMealPage} exact={true} />
-          <Route path="/meal" component={EditMealPage} exact={true} />
+        <AuthenticationProvider>
+          {/* Authentication Provider Routes */}
+          <Route path="/login" component={AuthenticationPage} exact={true} />
           <Route exact path="/" render={() => <Redirect to="/meals" />} />
-        </MealProvider>
+
+          <MealProvider>
+            {/* Meal Provider Routes */}
+            <PrivateRoute path="/meals" component={MealPage} exact={true} />
+            <PrivateRoute path="/meals/:id" component={EditMealPage} exact={true} />
+            <PrivateRoute path="/meal" component={EditMealPage} exact={true} />
+          </MealProvider>
+        </AuthenticationProvider>
       </IonRouterOutlet>
     </IonReactRouter>
 

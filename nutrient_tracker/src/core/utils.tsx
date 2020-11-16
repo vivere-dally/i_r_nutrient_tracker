@@ -84,3 +84,7 @@ export function getDateWithOffset(date: string): string {
     var offset = new Date().getTimezoneOffset();
     return new Date(new Date(date).getTime() - offset * 60000).toISOString();
 }
+
+export function getConfigWithToken(token: string): any {
+    
+}

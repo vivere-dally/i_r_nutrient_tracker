@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useReducer } from "react";
+import React, { useCallback, useContext, useEffect, useReducer } from "react";
 import PropTypes from 'prop-types';
 import { State } from "../core/state";
 import { getLogger, getReducer } from "../core/utils";
 import { Meal } from "./meal";
 import { ActionState, ActionType } from "../core/action";
-import { deleteMeal, getMealById, getMeals, newMealWebSocket, saveMeal, updateMeal } from "./meal-api";
+import { deleteMeal, getMealById, getMeals, newMealWebSocket, saveMeal, setAuthorizationToken, updateMeal } from "./meal-api";
+import { AuthenticationContext } from "../authentication/authentication-provider";
 
 interface MealState extends State<Meal, number> {
     save_?: MealParamToPromise,
@@ -30,12 +31,13 @@ interface MealProviderProps {
 export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     // States
     const [state, dispatch] = useReducer(reducer, mealInitialState);
+    const authenticationContext = useContext(AuthenticationContext);
     const { data, executing, actionType, actionError } = state;
     let ws: WebSocket;
 
     // Effects
-    useEffect(getMealsEffect, []);
-    useEffect(wsEffect, []);
+    useEffect(getMealsEffect, [authenticationContext.isAuthenticated]);
+    useEffect(wsEffect, [authenticationContext.isAuthenticated]);
 
     // Callbacks
     const save_ = useCallback<MealParamToPromise>(saveMealCallback, []);
@@ -74,6 +76,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
 
         async function getMealsFromApi() {
+            if (!authenticationContext.isAuthenticated) {
+                return;
+            }
+            
+            setAuthorizationToken(authenticationContext.token);
             try {
                 log('getMealsEffect - start');
                 dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });

@@ -46,3 +46,12 @@ export const newMealWebSocket =
 
         return ws;
     }
+
+export const setAuthorizationToken: (token: String) => void = token => {
+    axiosInstance.interceptors.request.use(function (config) {
+        config.headers.common['Authorization'] = token;
+        return config;
+    }, function (error) {
+        return Promise.reject(error);
+    });
+}
