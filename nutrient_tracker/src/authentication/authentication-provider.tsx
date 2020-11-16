@@ -3,10 +3,13 @@ import { Credentials } from "./credentials";
 import { AuthenticationProps, login } from "./authentication-api";
 import React, { useCallback, useEffect, useState } from "react";
 import PropTypes from 'prop-types';
+import { Storage } from "@capacitor/core";
 
 export type CredentialsToVoid = (credentials?: Credentials) => void;
+export type VoidToVoid = () => void;
 interface AuthenticationState extends Credentials, AuthenticationProps {
     login_?: CredentialsToVoid;
+    logout_?: VoidToVoid;
     isAuthenticated: boolean;
     isAuthenticating: boolean;
     authenticationError: Error | null;
@@ -30,9 +33,10 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
     const { isAuthenticated, isAuthenticating, authenticationError, token } = state;
 
     const login_ = useCallback<CredentialsToVoid>(loginCallback, []);
+    const logout_ = useCallback<VoidToVoid>(logoutCallback, []);
     useEffect(loginEffect, [state.isAuthenticating]);
 
-    const value = { isAuthenticated, isAuthenticating, authenticationError, token, login_ };
+    const value = { isAuthenticated, isAuthenticating, authenticationError, token, login_, logout_ };
     log('AuthenticationProvider - return');
     return (
         <AuthenticationContext.Provider value={value}>
@@ -50,6 +54,19 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
         });
     }
 
+    function logoutCallback(): void {
+        log('AuthenticationProvider - logoutCallback');
+        setState({
+            ...state,
+            isAuthenticated: false,
+            token: ''
+        });
+
+        (async () => {
+            await Storage.remove({ key: "token" });
+        })();
+    }
+
     function loginEffect() {
         let cancelled = false;
         authenticate();
@@ -58,6 +75,19 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
         }
 
         async function authenticate() {
+            const storageToken = await Storage.get({ key: "token" });
+            if (storageToken.value) {
+                log('loginEffect - authenticate - success');
+                setState({
+                    ...state,
+                    isAuthenticated: true,
+                    isAuthenticating: false,
+                    token: storageToken.value
+                });
+
+                return;
+            }
+
             if (!state.isAuthenticating) {
                 return;
             }

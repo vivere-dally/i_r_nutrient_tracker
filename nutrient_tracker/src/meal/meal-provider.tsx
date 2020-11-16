@@ -1,10 +1,11 @@
 import React, { useCallback, useContext, useEffect, useReducer } from "react";
 import PropTypes from 'prop-types';
+import { Storage } from "@capacitor/core";
 import { State } from "../core/state";
 import { getLogger, getReducer } from "../core/utils";
 import { Meal } from "./meal";
 import { ActionState, ActionType } from "../core/action";
-import { deleteMeal, getMealById, getMeals, newMealWebSocket, saveMeal, setAuthorizationToken, updateMeal } from "./meal-api";
+import { deleteMeal, getMealById, getMeals, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
 import { AuthenticationContext } from "../authentication/authentication-provider";
 
 interface MealState extends State<Meal, number> {
@@ -64,6 +65,12 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('getMealByIdCallback - failure');
+            if (await isNetworkError(error)) {
+                const result = await Storage.get({ key: String(mealId) });
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: JSON.parse(result.value) });
+                return;
+            }
+
             dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET_ONE, data: error });
         }
     }
@@ -79,7 +86,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             if (!authenticationContext.isAuthenticated) {
                 return;
             }
-            
+
             setAuthorizationToken(authenticationContext.token);
             try {
                 log('getMealsEffect - start');
@@ -92,6 +99,29 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             }
             catch (error) {
                 log('getMealsEffect - failure');
+                if (await isNetworkError(error)) {
+                    const data: any[] = [];
+                    await Storage
+                        .keys()
+                        .then(allKeys => {
+                            allKeys.keys.forEach(key => {
+                                Storage
+                                    .get({ key })
+                                    .then(result => {
+                                        try {
+                                            data.push(JSON.parse(result.value));
+                                        }
+                                        catch { }
+                                    })
+                            });
+                        });
+
+                    if (!cancelled) {
+                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                    }
+                    return;
+                }
+
                 dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
             }
         }
@@ -101,10 +131,17 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('saveMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.SAVE });
-            saveMeal(meal);
+            await saveMeal(meal);
         }
         catch (error) {
             log('saveMealCallback - failure');
+            if (await isNetworkError(error)) {
+                meal.id = Math.floor(Math.random() * (1e10));
+                await storageSetMeal(meal);
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.SAVE, data: meal });
+                return;
+            }
+
             dispatch({ actionState: ActionState.FAILED, actionType: ActionType.SAVE, data: error });
         }
     }
@@ -113,10 +150,16 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('updateMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.UPDATE });
-            updateMeal(meal);
+            await updateMeal(meal);
         }
         catch (error) {
             log('updateMealCallback - failure');
+            if (await isNetworkError(error)) {
+                await storageSetMeal(meal);
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: meal });
+                return;
+            }
+
             dispatch({ actionState: ActionState.FAILED, actionType: ActionType.UPDATE, data: error });
         }
     }
@@ -125,10 +168,16 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('deleteMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.DELETE });
-            deleteMeal(mealId);
+            await deleteMeal(mealId);
         }
         catch (error) {
             log('deleteMealCallback - failure');
+            if (await isNetworkError(error)) {
+                await Storage.remove({ key: String(mealId) });
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.DELETE, data: { id: mealId } });
+                return;
+            }
+
             dispatch({ actionState: ActionState.FAILED, actionType: ActionType.DELETE, data: error });
         }
     }

@@ -11,14 +11,15 @@ export const getLogger: (tag: string) =>
 
 export async function execWithLogs<T>(promise: Promise<T>, caller: string, log: (...args: any) => void): Promise<T> {
     log(`${caller} - START`);
-    try {
-        const result = await promise;
-        log(`${caller} - SUCCESS`);
-        return Promise.resolve(result);
-    } catch (error) {
-        log(`${caller} - FAILURE`);
-        return Promise.reject(error);
-    }
+    return promise
+        .then(result => {
+            log(`${caller} - SUCCESS`);
+            return Promise.resolve(result);
+        })
+        .catch(error => {
+            log(`${caller} - FAILURE`);
+            return Promise.reject(error);
+        });
 }
 
 export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (state: S, actionPayload: ActionPayload) => S {
@@ -86,5 +87,5 @@ export function getDateWithOffset(date: string): string {
 }
 
 export function getConfigWithToken(token: string): any {
-    
+
 }

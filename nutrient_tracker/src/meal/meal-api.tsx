@@ -1,10 +1,13 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { ActionPayload } from '../core/action';
 import { execWithLogs, getLogger } from "../core/utils";
 import { environment } from '../environments/environment';
 import { Meal } from './meal';
+import { Plugins } from "@capacitor/core";
+// import NetInfo from "@react-native-community/netinfo";
 
 // SETUP
+const { Storage } = Plugins;
 const log = getLogger('meal/meal-api')
 const axiosInstance = axios.create({
     baseURL: environment.urlApi
@@ -16,24 +19,66 @@ const config = {
     }
 };
 
+export async function storageSetMeal(meal: Meal) {
+    await Storage.set({
+        key: String(meal.id),
+        value: JSON.stringify(meal)
+    });
+}
+
 export const getMealById: (mealId: number) => Promise<Meal> = mealId => {
-    return execWithLogs(axiosInstance.get<Meal>(`/meal/${mealId}`, config).then(response => response.data), 'getMealById', log);
+    const promise = axiosInstance
+        .get<Meal>(`/meal/${mealId}`, config)
+        .then(async (response) => {
+            await storageSetMeal(response.data);
+            return response.data
+        });
+
+    return execWithLogs(promise, 'getMealById', log);
 }
 
 export const getMeals: () => Promise<Meal[]> = () => {
-    return execWithLogs(axiosInstance.get<Meal[]>(`/meal`, config).then(response => response.data), 'getMeals', log);
+    const promise = axiosInstance
+        .get<Meal[]>(`/meal`, config)
+        .then(response => {
+            response.data.forEach(async (_data) => await storageSetMeal(_data));
+            return response.data
+        });
+
+    return execWithLogs(promise, 'getMeals', log);
 }
 
 export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
-    return execWithLogs(axiosInstance.post<Meal>("/meal", meal, config).then(response => response.data), 'saveMeal', log);
+    const promise = axiosInstance
+        .post<Meal>("/meal", meal, config)
+        .then(async (response) => {
+            await storageSetMeal(response.data);
+            return response.data
+        });
+
+    return execWithLogs(promise, 'saveMeal', log);
 }
 
 export const updateMeal: (meal: Meal) => Promise<Meal> = meal => {
-    return execWithLogs(axiosInstance.put<Meal>(`/meal/${meal.id}`, meal, config).then(response => response.data), 'updateMeal', log);
+    const promise = axiosInstance
+        .put<Meal>(`/meal/${meal.id}`, meal, config)
+        .then(async (response) => {
+            await storageSetMeal(response.data);
+            return response.data
+        });
+
+    return execWithLogs(promise, 'updateMeal', log);
 }
 
 export const deleteMeal: (mealId: number) => Promise<Meal> = mealId => {
-    return execWithLogs(axiosInstance.delete<Meal>(`/meal/${mealId}`, config).then(response => response.data), 'deleteMeal', log);
+    const promise = axiosInstance
+        .delete<Meal>(`/meal/${mealId}`, config)
+        .then(async (response) => {
+            await Storage.remove({ key: String(response.data.id) });
+            return response.data
+        });
+
+    return execWithLogs(promise, 'deleteMeal', log);
 }
 
 export const newMealWebSocket =
@@ -54,4 +99,16 @@ export const setAuthorizationToken: (token: String) => void = token => {
     }, function (error) {
         return Promise.reject(error);
     });
+}
+
+export async function isNetworkError(error: AxiosError): Promise<boolean> {
+    // if (!await NetInfo.fetch().then(state => state.isConnected)) {
+    //     return false;
+    // }
+
+    if (error.response !== undefined) {
+        return false;
+    }
+
+    return true;
 }

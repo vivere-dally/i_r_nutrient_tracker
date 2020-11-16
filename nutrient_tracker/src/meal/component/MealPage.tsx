@@ -1,7 +1,8 @@
-import { IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
+import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonLabel, IonList, IonLoading, IonPage, IonTitle, IonToolbar } from "@ionic/react";
 import { add } from "ionicons/icons";
 import React, { useContext } from "react";
 import { RouteComponentProps } from "react-router";
+import { AuthenticationContext } from "../../authentication/authentication-provider";
 import { ActionType } from "../../core/action";
 import { MealContext } from "../meal-provider";
 import '../style/MealPage.css';
@@ -9,6 +10,12 @@ import MealListItem from "./MealListItem";
 
 const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
     const mealContext = useContext(MealContext);
+    const { logout_ } = useContext(AuthenticationContext);
+
+    const handleLogout = () => {
+        logout_ && logout_();
+    }
+
     return (
         <IonPage id="meal-page">
             <IonHeader>
@@ -23,6 +30,9 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
                         <IonTitle size="large">
                             Meals
                         </IonTitle>
+                        <IonButtons slot="end">
+                            <IonButton onClick={handleLogout}>Logout</IonButton>
+                        </IonButtons>
                     </IonToolbar>
                 </IonHeader>
 

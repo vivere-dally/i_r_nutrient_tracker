@@ -88,7 +88,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
                 <IonItem>
                     <IonLabel>IsEaten</IonLabel>
-                    <IonCheckbox value={eaten.toString()} onIonChange={e => setEaten(e.detail.value || false)} />
+                    <IonCheckbox value={eaten.toString()} onIonChange={e => setEaten(e.detail.checked || false)} />
                 </IonItem>
 
                 <IonItem>
