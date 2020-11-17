@@ -26,6 +26,19 @@ export async function storageSetMeal(meal: Meal) {
     });
 }
 
+export async function clearMealsFromStorage() {
+    const importantKeys: string[] = ['token', 'user_id'];
+    await Storage
+        .keys()
+        .then(allKeys => {
+            allKeys.keys.forEach(key => {
+                if (importantKeys.indexOf(key) === -1) {
+                    Storage.remove({ key });
+                }
+            });
+        });
+}
+
 export const getMealById: (mealId: number) => Promise<Meal> = mealId => {
     const promise = axiosInstance
         .get<Meal>(`/meal/${mealId}`, config)
@@ -41,6 +54,31 @@ export const getMeals: () => Promise<Meal[]> = () => {
     const promise = axiosInstance
         .get<Meal[]>(`/meal`, config)
         .then(response => {
+            clearMealsFromStorage();
+            response.data.forEach(async (_data) => await storageSetMeal(_data));
+            return response.data
+        });
+
+    return execWithLogs(promise, 'getMeals', log);
+}
+
+export const getMealsByComment: (comment: String) => Promise<Meal[]> = (comment) => {
+    const promise = axiosInstance
+        .get<Meal[]>(`/meal/filter?comment=${comment}`, config)
+        .then(response => {
+            clearMealsFromStorage();
+            response.data.forEach(async (_data) => await storageSetMeal(_data));
+            return response.data
+        });
+
+    return execWithLogs(promise, 'getMeals', log);
+}
+
+export const getAllEatenMeals: () => Promise<Meal[]> = () => {
+    const promise = axiosInstance
+        .get<Meal[]>(`/meal/eaten`, config)
+        .then(response => {
+            clearMealsFromStorage();
             response.data.forEach(async (_data) => await storageSetMeal(_data));
             return response.data
         });

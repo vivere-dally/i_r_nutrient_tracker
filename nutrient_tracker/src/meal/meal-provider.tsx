@@ -5,20 +5,26 @@ import { State } from "../core/state";
 import { getLogger, getReducer } from "../core/utils";
 import { Meal } from "./meal";
 import { ActionState, ActionType } from "../core/action";
-import { deleteMeal, getMealById, getMeals, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
+import { deleteMeal, getAllEatenMeals, getMealById, getMeals, getMealsByComment, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
 import { AuthenticationContext } from "../authentication/authentication-provider";
 
 interface MealState extends State<Meal, number> {
     save_?: MealParamToPromise,
     update_?: MealParamToPromise,
     delete_?: MealIdParamToPromise,
-    get_?: MealIdParamToPromise
+    get_?: MealIdParamToPromise,
+    getAll_?: BooleanToPromise,
+    getByComment_?: MealCommentToPromise,
+    getAllEaten_?: MealEatenToPromise
 }
 
 const log = getLogger('meal/meal-provider');
 const reducer = getReducer<MealState, Meal, number>();
 export type MealParamToPromise = (meal: Meal) => Promise<any>;
 export type MealIdParamToPromise = (mealId: number) => Promise<any>;
+export type MealCommentToPromise = (comment: string) => Promise<any>;
+export type MealEatenToPromise = () => Promise<any>;
+export type BooleanToPromise = (cancelled: boolean) => Promise<any>;
 
 const mealInitialState: MealState = {
     executing: false
@@ -45,8 +51,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     const update_ = useCallback<MealParamToPromise>(updateMealCallback, []);
     const delete_ = useCallback<MealIdParamToPromise>(deleteMealCallback, []);
     const getById_ = useCallback<MealIdParamToPromise>(getMealByIdCallback, []);
+    const getAll_ = useCallback<BooleanToPromise>(getMealsFromApi, [authenticationContext]);
+    const getByComment_ = useCallback<MealCommentToPromise>(getByCommentCallback, [authenticationContext]);
+    const getAllEaten_ = useCallback<MealEatenToPromise>(getAllEatenCallback, [authenticationContext]);
 
-    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_ };
+    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_, getAll_, getByComment_, getAllEaten_ };
 
     log('MealProvider - return');
     return (
@@ -77,53 +86,139 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
     function getMealsEffect() {
         let cancelled = false;
-        getMealsFromApi();
+        getMealsFromApi(cancelled);
         return () => {
             cancelled = true;
         }
+    }
 
-        async function getMealsFromApi() {
-            if (!authenticationContext.isAuthenticated) {
-                return;
+    async function getMealsFromApi(cancelled: boolean) {
+        if (!authenticationContext.isAuthenticated) {
+            return;
+        }
+
+        setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
+        try {
+            log('getMealsEffect - start');
+            dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
+            const data = await getMeals();
+            log('getMealsEffect - success');
+            if (!cancelled) {
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
             }
+        }
+        catch (error) {
+            log('getMealsEffect - failure');
+            if (await isNetworkError(error)) {
+                const data: any[] = [];
+                await Storage
+                    .keys()
+                    .then(allKeys => {
+                        allKeys.keys.forEach(key => {
+                            Storage
+                                .get({ key })
+                                .then(result => {
+                                    try {
+                                        data.push(JSON.parse(result.value));
+                                    }
+                                    catch { }
+                                })
+                        });
+                    });
 
-            setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
-            try {
-                log('getMealsEffect - start');
-                dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
-                const data = await getMeals();
-                log('getMealsEffect - success');
                 if (!cancelled) {
                     dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
                 }
+                return;
             }
-            catch (error) {
-                log('getMealsEffect - failure');
-                if (await isNetworkError(error)) {
-                    const data: any[] = [];
-                    await Storage
-                        .keys()
-                        .then(allKeys => {
-                            allKeys.keys.forEach(key => {
-                                Storage
-                                    .get({ key })
-                                    .then(result => {
-                                        try {
-                                            data.push(JSON.parse(result.value));
-                                        }
-                                        catch { }
-                                    })
-                            });
-                        });
 
-                    if (!cancelled) {
-                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
-                    }
-                    return;
-                }
+            dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+        }
+    }
 
-                dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
-            }
+    async function getByCommentCallback(comment: String) {
+        if (!authenticationContext.isAuthenticated) {
+            return;
+        }
+
+        setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
+        try {
+            log('getMealsEffect - start');
+            dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
+            const data = await getMealsByComment(comment);
+            log('getMealsEffect - success');
+            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+        }
+        catch (error) {
+            // TODO
+
+
+            // log('getMealsEffect - failure');
+            // if (await isNetworkError(error)) {
+            //     const data: any[] = [];
+            //     await Storage
+            //         .keys()
+            //         .then(allKeys => {
+            //             allKeys.keys.forEach(key => {
+            //                 Storage
+            //                     .get({ key })
+            //                     .then(result => {
+            //                         try {
+            //                             data.push(JSON.parse(result.value));
+            //                         }
+            //                         catch { }
+            //                     })
+            //             });
+            //         });
+
+            //     dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+            //     return;
+            // }
+
+            // dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+        }
+    }
+
+    async function getAllEatenCallback() {
+        if (!authenticationContext.isAuthenticated) {
+            return;
+        }
+
+        setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
+        try {
+            log('getMealsEffect - start');
+            dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
+            const data = await getAllEatenMeals();
+            log('getMealsEffect - success');
+            dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+        }
+        catch (error) {
+            // TODO
+
+
+            // log('getMealsEffect - failure');
+            // if (await isNetworkError(error)) {
+            //     const data: any[] = [];
+            //     await Storage
+            //         .keys()
+            //         .then(allKeys => {
+            //             allKeys.keys.forEach(key => {
+            //                 Storage
+            //                     .get({ key })
+            //                     .then(result => {
+            //                         try {
+            //                             data.push(JSON.parse(result.value));
+            //                         }
+            //                         catch { }
+            //                     })
+            //             });
+            //         });
+
+            //     dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+            //     return;
+            // }
+
+            // dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
         }
     }
 
@@ -190,7 +285,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                 return;
             }
 
-            if (payload.data.userId == authenticationContext.id) {
+            if (payload.data.userId === authenticationContext.id) {
                 log(`wsEffect - received ${payload.data.entity}`);
                 dispatch({ actionType: payload.actionType, actionState: ActionState.SUCCEEDED, data: payload.data.entity });
             }
