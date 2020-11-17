@@ -119,7 +119,10 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                                 .get({ key })
                                 .then(result => {
                                     try {
-                                        data.push(JSON.parse(result.value));
+                                        const object = JSON.parse(result.value);
+                                        if (object.userId === authenticationContext.id) {
+                                            data.push(object);
+                                        }
                                     }
                                     catch { }
                                 })
@@ -143,39 +146,39 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
         setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
         try {
-            log('getMealsEffect - start');
+            log('getByCommentCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
             const data = await getMealsByComment(comment);
-            log('getMealsEffect - success');
+            log('getByCommentCallback - success');
             dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
         }
         catch (error) {
-            // TODO
+            log('getByCommentCallback - failure');
+            if (await isNetworkError(error)) {
+                const data: any[] = [];
+                await Storage
+                    .keys()
+                    .then(allKeys => {
+                        allKeys.keys.forEach(key => {
+                            Storage
+                                .get({ key })
+                                .then(result => {
+                                    try {
+                                        const object = JSON.parse(result.value);
+                                        if (object.userId === authenticationContext.id && object.comment!.startsWith(comment)) {
+                                            data.push(object);
+                                        }
+                                    }
+                                    catch { }
+                                })
+                        });
+                    });
 
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                return;
+            }
 
-            // log('getMealsEffect - failure');
-            // if (await isNetworkError(error)) {
-            //     const data: any[] = [];
-            //     await Storage
-            //         .keys()
-            //         .then(allKeys => {
-            //             allKeys.keys.forEach(key => {
-            //                 Storage
-            //                     .get({ key })
-            //                     .then(result => {
-            //                         try {
-            //                             data.push(JSON.parse(result.value));
-            //                         }
-            //                         catch { }
-            //                     })
-            //             });
-            //         });
-
-            //     dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
-            //     return;
-            // }
-
-            // dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+            dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
         }
     }
 
@@ -193,32 +196,32 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
         }
         catch (error) {
-            // TODO
+            log('getMealsEffect - failure');
+            if (await isNetworkError(error)) {
+                const data: any[] = [];
+                await Storage
+                    .keys()
+                    .then(allKeys => {
+                        allKeys.keys.forEach(key => {
+                            Storage
+                                .get({ key })
+                                .then(result => {
+                                    try {
+                                        const object = JSON.parse(result.value);
+                                        if (object.userId === authenticationContext.id && object.eaten) {
+                                            data.push(object);
+                                        }
+                                    }
+                                    catch { }
+                                })
+                        });
+                    });
 
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                return;
+            }
 
-            // log('getMealsEffect - failure');
-            // if (await isNetworkError(error)) {
-            //     const data: any[] = [];
-            //     await Storage
-            //         .keys()
-            //         .then(allKeys => {
-            //             allKeys.keys.forEach(key => {
-            //                 Storage
-            //                     .get({ key })
-            //                     .then(result => {
-            //                         try {
-            //                             data.push(JSON.parse(result.value));
-            //                         }
-            //                         catch { }
-            //                     })
-            //             });
-            //         });
-
-            //     dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
-            //     return;
-            // }
-
-            // dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+            dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
         }
     }
 

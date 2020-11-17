@@ -117,12 +117,17 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
                     return;
                 }
 
+                var errorMsg = error.toString();
+                if (error.response) {
+                    errorMsg = error.response.data;
+                }
+
                 log('loginEffect - authenticate - error');
                 setState({
                     ...state,
                     isAuthenticated: false,
                     isAuthenticating: false,
-                    authenticationError: error.response.data,
+                    authenticationError: errorMsg,
                 });
             }
         }

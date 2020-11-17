@@ -1,4 +1,4 @@
-import { IonHeader, IonItem, IonLabel, IonLoading, IonNote, IonTitle } from '@ionic/react';
+import { IonItem, IonLabel, IonNote } from '@ionic/react';
 import moment from 'moment';
 import React from 'react';
 import { Meal } from '../meal';
