@@ -87,7 +87,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                 return;
             }
 
-            setAuthorizationToken(authenticationContext.token);
+            setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
             try {
                 log('getMealsEffect - start');
                 dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });

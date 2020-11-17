@@ -92,7 +92,8 @@ export const newMealWebSocket =
         return ws;
     }
 
-export const setAuthorizationToken: (token: String) => void = token => {
+export const setAuthorizationToken: (token: String, userId: number) => void = (token, userId) => {
+    axiosInstance.defaults.baseURL = `${environment.urlApi}user/${userId}`;
     axiosInstance.interceptors.request.use(function (config) {
         config.headers.common['Authorization'] = token;
         return config;

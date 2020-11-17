@@ -7,7 +7,7 @@ import { Storage } from "@capacitor/core";
 
 export type CredentialsToVoid = (credentials?: Credentials) => void;
 export type VoidToVoid = () => void;
-interface AuthenticationState extends Credentials, AuthenticationProps {
+interface AuthenticationState extends AuthenticationProps {
     login_?: CredentialsToVoid;
     logout_?: VoidToVoid;
     isAuthenticated: boolean;
@@ -30,13 +30,13 @@ interface AuthenticationProviderProps {
 
 export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ children }) => {
     const [state, setState] = useState<AuthenticationState>(authenticationInitialState);
-    const { isAuthenticated, isAuthenticating, authenticationError, token } = state;
+    const { id, isAuthenticated, isAuthenticating, authenticationError, token } = state;
 
     const login_ = useCallback<CredentialsToVoid>(loginCallback, []);
     const logout_ = useCallback<VoidToVoid>(logoutCallback, []);
     useEffect(loginEffect, [state.isAuthenticating]);
 
-    const value = { isAuthenticated, isAuthenticating, authenticationError, token, login_, logout_ };
+    const value = { id, isAuthenticated, isAuthenticating, authenticationError, token, login_, logout_ };
     log('AuthenticationProvider - return');
     return (
         <AuthenticationContext.Provider value={value}>
@@ -59,11 +59,13 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
         setState({
             ...state,
             isAuthenticated: false,
-            token: ''
+            token: '',
+            id: undefined
         });
 
         (async () => {
             await Storage.remove({ key: "token" });
+            await Storage.remove({ key: "user_id" });
         })();
     }
 
@@ -76,13 +78,15 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
 
         async function authenticate() {
             const storageToken = await Storage.get({ key: "token" });
+            const storageUserId = await Storage.get({ key: "user_id" });
             if (storageToken.value) {
                 log('loginEffect - authenticate - success');
                 setState({
                     ...state,
                     isAuthenticated: true,
                     isAuthenticating: false,
-                    token: storageToken.value
+                    token: storageToken.value,
+                    id: Number(storageUserId.value)
                 });
 
                 return;
@@ -105,7 +109,8 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
                     ...state,
                     isAuthenticated: true,
                     isAuthenticating: false,
-                    token: authenticationProps.token
+                    token: authenticationProps.token,
+                    id: Number(authenticationProps.id)
                 });
             } catch (error) {
                 if (cancelled) {
