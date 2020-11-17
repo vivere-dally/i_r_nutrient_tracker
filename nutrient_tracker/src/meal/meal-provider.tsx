@@ -190,8 +190,10 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                 return;
             }
 
-            log(`wsEffect - received ${payload.data}`);
-            dispatch({ ...payload, actionState: ActionState.SUCCEEDED });
+            if (payload.data.userId == authenticationContext.id) {
+                log(`wsEffect - received ${payload.data.entity}`);
+                dispatch({ actionType: payload.actionType, actionState: ActionState.SUCCEEDED, data: payload.data.entity });
+            }
         });
 
         ws = webSocket;
