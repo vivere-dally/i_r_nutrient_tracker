@@ -160,7 +160,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                         setReload(false);
                     }
                     else {
-                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_PAGED, data: data });
                     }
                 }
             }

@@ -37,6 +37,8 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
     }, [isInfiniteScrollingDisabled]);
 
     const handleLogout = () => {
+        mealPageContext.setIsInfiniteScrollingDisabled && mealPageContext.setIsInfiniteScrollingDisabled(false);
+        setReload_ && setReload_(true);
         logout_ && logout_();
     }
 
