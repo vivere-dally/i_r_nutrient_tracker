@@ -7,6 +7,7 @@ export enum ActionState {
 export enum ActionType {
     GET_ONE = "GET_ONE",
     GET = "GET",
+    GET_PAGED = "GET_PAGED",
     SAVE = "SAVE",
     UPDATE = "UPDATE",
     DELETE = "DELETE"

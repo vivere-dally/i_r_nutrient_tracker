@@ -1,30 +1,33 @@
-import React, { useCallback, useContext, useEffect, useReducer } from "react";
+import React, { useCallback, useContext, useEffect, useReducer, useState } from "react";
 import PropTypes from 'prop-types';
 import { Storage } from "@capacitor/core";
 import { State } from "../core/state";
 import { getLogger, getReducer } from "../core/utils";
 import { Meal } from "./meal";
 import { ActionState, ActionType } from "../core/action";
-import { deleteMeal, getAllEatenMeals, getMealById, getMeals, getMealsByComment, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
+import { deleteMeal, getAllEatenMeals, getMealById, getMeals, getMealsByComment, getMealsPaged, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
 import { AuthenticationContext } from "../authentication/authentication-provider";
+import { environment } from "../environments/environment";
 
 interface MealState extends State<Meal, number> {
     save_?: MealParamToPromise,
     update_?: MealParamToPromise,
-    delete_?: MealIdParamToPromise,
-    get_?: MealIdParamToPromise,
-    getAll_?: BooleanToPromise,
-    getByComment_?: MealCommentToPromise,
-    getAllEaten_?: MealEatenToPromise
+    delete_?: NumberParamToPromise,
+    get_?: NumberParamToPromise,
+    getByComment_?: StringParamToPromise,
+    getAllEaten_?: VoidToPromise,
+    getPaged_?: BooleanToBooleanPromise,
+    setReload_?: BooleanToPromise
 }
 
 const log = getLogger('meal/meal-provider');
 const reducer = getReducer<MealState, Meal, number>();
 export type MealParamToPromise = (meal: Meal) => Promise<any>;
-export type MealIdParamToPromise = (mealId: number) => Promise<any>;
-export type MealCommentToPromise = (comment: string) => Promise<any>;
-export type MealEatenToPromise = () => Promise<any>;
-export type BooleanToPromise = (cancelled: boolean) => Promise<any>;
+export type NumberParamToPromise = (value: number) => Promise<any>;
+export type StringParamToPromise = (value: string) => Promise<any>;
+export type VoidToPromise = () => Promise<any>;
+export type BooleanToPromise = (value: boolean) => Promise<any>;
+export type BooleanToBooleanPromise = (value: boolean) => Promise<boolean>;
 
 const mealInitialState: MealState = {
     executing: false
@@ -40,22 +43,25 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     const [state, dispatch] = useReducer(reducer, mealInitialState);
     const authenticationContext = useContext(AuthenticationContext);
     const { data, executing, actionType, actionError } = state;
+    const [page, setPage] = useState<number>(0);
+    const [reload, setReload] = useState<boolean>(true);
     let ws: WebSocket;
 
     // Effects
-    useEffect(getMealsEffect, [authenticationContext.isAuthenticated]);
+    useEffect(getFirstPageEffect, [authenticationContext.isAuthenticated, reload]);
     useEffect(wsEffect, [authenticationContext.isAuthenticated]);
 
     // Callbacks
     const save_ = useCallback<MealParamToPromise>(saveMealCallback, []);
     const update_ = useCallback<MealParamToPromise>(updateMealCallback, []);
-    const delete_ = useCallback<MealIdParamToPromise>(deleteMealCallback, []);
-    const getById_ = useCallback<MealIdParamToPromise>(getMealByIdCallback, []);
-    const getAll_ = useCallback<BooleanToPromise>(getMealsFromApi, [authenticationContext]);
-    const getByComment_ = useCallback<MealCommentToPromise>(getByCommentCallback, [authenticationContext]);
-    const getAllEaten_ = useCallback<MealEatenToPromise>(getAllEatenCallback, [authenticationContext]);
+    const delete_ = useCallback<NumberParamToPromise>(deleteMealCallback, []);
+    const getById_ = useCallback<NumberParamToPromise>(getMealByIdCallback, []);
+    const getByComment_ = useCallback<StringParamToPromise>(getByCommentCallback, [authenticationContext]);
+    const getAllEaten_ = useCallback<VoidToPromise>(getAllEatenCallback, [authenticationContext]);
+    const getPaged_ = useCallback<BooleanToBooleanPromise>(getPagedCallback, [authenticationContext, page]);
+    const setReload_ = useCallback<BooleanToPromise>(setReloadCallback, []);
 
-    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_, getAll_, getByComment_, getAllEaten_ };
+    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_, getByComment_, getAllEaten_, getPaged_, setReload_ };
 
     log('MealProvider - return');
     return (
@@ -84,32 +90,46 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
     }
 
-    function getMealsEffect() {
+    function getFirstPageEffect() {
         let cancelled = false;
-        getMealsFromApi(cancelled);
+        if (reload) {
+            getPagedCallback(cancelled);
+        }
+
         return () => {
             cancelled = true;
         }
     }
 
-    async function getMealsFromApi(cancelled: boolean) {
+    async function getPagedCallback(cancelled: boolean): Promise<boolean> {
         if (!authenticationContext.isAuthenticated) {
-            return;
+            return false;
         }
 
         setAuthorizationToken(authenticationContext.token, authenticationContext.id!);
+        var pageSize = -1;
         try {
             log('getMealsEffect - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
-            const data = await getMeals();
+            const data = await getMealsPaged(page);
+            pageSize = data.length;
             log('getMealsEffect - success');
             if (!cancelled) {
-                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                if (page === 0) {
+                    dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                    setReload(false);
+                }
+                else {
+                    dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_PAGED, data: data });
+                }
             }
         }
         catch (error) {
             log('getMealsEffect - failure');
             if (await isNetworkError(error)) {
+                var index: number = 0;
+                const offset: number = page * environment.pageSize;
+                const limit: number = offset + environment.pageSize;
                 const data: any[] = [];
                 await Storage
                     .keys()
@@ -121,7 +141,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                                     try {
                                         const object = JSON.parse(result.value);
                                         if (object.userId === authenticationContext.id) {
-                                            data.push(object);
+                                            if (offset <= index && index < limit) {
+                                                data.push(object);
+                                            }
+
+                                            index += 1;
                                         }
                                     }
                                     catch { }
@@ -129,13 +153,24 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
                         });
                     });
 
+                pageSize = data.length;
                 if (!cancelled) {
-                    dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                    if (page === 0) {
+                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                        setReload(false);
+                    }
+                    else {
+                        dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
+                    }
                 }
-                return;
             }
-
-            dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+            else {
+                dispatch({ actionState: ActionState.FAILED, actionType: ActionType.GET, data: error });
+            }
+        }
+        finally {
+            setPage(page + 1);
+            return pageSize < environment.pageSize;
         }
     }
 
@@ -278,6 +313,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
             dispatch({ actionState: ActionState.FAILED, actionType: ActionType.DELETE, data: error });
         }
+    }
+
+    async function setReloadCallback(value: boolean) {
+        setPage(0);
+        setReload(value);
     }
 
     function wsEffect() {

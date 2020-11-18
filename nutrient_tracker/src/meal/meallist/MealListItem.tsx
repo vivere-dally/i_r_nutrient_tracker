@@ -2,7 +2,7 @@ import { IonItem, IonLabel, IonNote } from '@ionic/react';
 import moment from 'moment';
 import React from 'react';
 import { Meal } from '../meal';
-import '../style/MealListItem.css';
+import './MealListItem.css';
 
 interface MealListItemProps {
     meal: Meal;

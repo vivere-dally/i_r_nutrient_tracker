@@ -32,6 +32,13 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
                     case ActionType.GET_ONE:
                     case ActionType.GET:
                         return { ...state, executing: false, data: data }
+                    case ActionType.GET_PAGED:
+                        return {
+                            ...state, executing: false, data: (function (): Entity<T>[] {
+                                const stateData = [...(state.data || [])];
+                                return stateData.concat(data);
+                            }())
+                        }
                     case ActionType.SAVE:
                         return {
                             ...state, executing: false, data: (function (): Entity<T>[] {
@@ -84,8 +91,4 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
 export function getDateWithOffset(date: string): string {
     var offset = new Date().getTimezoneOffset();
     return new Date(new Date(date).getTime() - offset * 60000).toISOString();
-}
-
-export function getConfigWithToken(token: string): any {
-
 }

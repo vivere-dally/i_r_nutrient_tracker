@@ -35,11 +35,10 @@ export const login: (credentials: Credentials) => Promise<AuthenticationProps> =
                             }
                         })
                         .then(second_response => {
-                            console.log(second_response);
                             return second_response.data;
                         })
                         .catch(err => {
-                            console.log(JSON.stringify(err));
+                            log(JSON.stringify(err));
                             return credentials;
                         }),
                     'login',

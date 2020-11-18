@@ -1,4 +1,4 @@
-import { IonBackButton, IonButton, IonButtons, IonCheckbox, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonPage, IonToolbar } from '@ionic/react'
+import { IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonPage, IonToggle, IonToolbar } from '@ionic/react'
 import { trash } from 'ionicons/icons'
 import React from 'react'
 import { useContext, useEffect, useState } from 'react'
@@ -6,7 +6,7 @@ import { RouteComponentProps } from 'react-router'
 import { getDateWithOffset, getLogger } from '../../core/utils'
 import { Meal } from '../meal'
 import { MealContext } from '../meal-provider'
-import '../style/EditMealPage.css'
+import './EditMealPage.css'
 
 const log = getLogger('meal/component/EditMealPage')
 interface MealProps extends RouteComponentProps<{
@@ -88,7 +88,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
                 <IonItem>
                     <IonLabel>IsEaten</IonLabel>
-                    <IonCheckbox value={eaten.toString()} onIonChange={e => setEaten(e.detail.checked || false)} />
+                    <IonToggle checked={eaten} onIonChange={e => setEaten(e.detail.checked || false)} />
                 </IonItem>
 
                 <IonItem>

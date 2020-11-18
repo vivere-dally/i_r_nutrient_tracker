@@ -22,11 +22,12 @@ import '@ionic/react/css/display.css';
 /* Theme variables */
 import './theme/variables.css';
 import { MealProvider } from './meal/meal-provider';
-import MealPage from './meal/component/MealPage';
-import EditMealPage from './meal/component/EditMealPage';
+import MealPage from './meal/meallist/MealPage';
+import EditMealPage from './meal/mealedit/EditMealPage';
 import { AuthenticationProvider } from './authentication/authentication-provider';
 import { AuthenticationPage } from './authentication/component/AuthenticationPage';
 import { PrivateRoute } from './authentication/component/PrivateRoute';
+import { MealPageProvider } from './meal/meallist/MealPageContext';
 
 const App: React.FC = () => (
   <IonApp>
@@ -39,7 +40,9 @@ const App: React.FC = () => (
 
           <MealProvider>
             {/* Meal Provider Routes */}
-            <PrivateRoute path="/meals" component={MealPage} exact={true} />
+            <MealPageProvider>
+              <PrivateRoute path="/meals" component={MealPage} exact={true} />
+            </MealPageProvider>
             <PrivateRoute path="/meals/:id" component={EditMealPage} exact={true} />
             <PrivateRoute path="/meal" component={EditMealPage} exact={true} />
           </MealProvider>

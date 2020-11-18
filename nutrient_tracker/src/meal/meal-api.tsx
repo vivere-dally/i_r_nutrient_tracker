@@ -86,6 +86,17 @@ export const getAllEatenMeals: () => Promise<Meal[]> = () => {
     return execWithLogs(promise, 'getMeals', log);
 }
 
+export const getMealsPaged: (page: number) => Promise<Meal[]> = (page) => {
+    const promise = axiosInstance
+        .get<Meal[]>(`/meal?page=${page}&size=${environment.pageSize}&sortBy=date.desc`, config)
+        .then(response => {
+            response.data.forEach(async (_data) => await storageSetMeal(_data));
+            return response.data
+        });
+
+    return execWithLogs(promise, 'getMeals', log);
+}
+
 export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
     const promise = axiosInstance
         .post<Meal>("/meal", meal, config)
