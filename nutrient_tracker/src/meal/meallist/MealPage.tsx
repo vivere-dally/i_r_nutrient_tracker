@@ -47,6 +47,9 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
             setIsInfiniteScrollingDisabled(false);
             setReload_ && setReload_(true);
         }
+        else {
+            setIsInfiniteScrollingDisabled(true);
+        }
 
         setSearchTextFilter(value || '');
     }
@@ -55,6 +58,9 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
         if (isEatenFilter && !value) {
             setIsInfiniteScrollingDisabled(false);
             setReload_ && setReload_(true);
+        }
+        else {
+            setIsInfiniteScrollingDisabled(true);
         }
 
         setIsEatenFilter(value);
