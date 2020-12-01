@@ -64,8 +64,7 @@ export const AuthenticationProvider: React.FC<AuthenticationProviderProps> = ({ 
         });
 
         (async () => {
-            await Storage.remove({ key: "token" });
-            await Storage.remove({ key: "user_id" });
+            await Storage.clear();
         })();
     }
 

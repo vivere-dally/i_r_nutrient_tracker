@@ -1,97 +1,157 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { ActionPayload } from '../core/action';
+import { getEtaggedResponse, saveEtaggedResponse } from '../core/etag-management';
 import { execWithLogs, getLogger } from "../core/utils";
 import { environment } from '../environments/environment';
 import { Meal } from './meal';
-import { Plugins } from "@capacitor/core";
-// import NetInfo from "@react-native-community/netinfo";
+import { getStorageMealById, resolveMealArrayResponse, resolveMealResponse, storageRemoveMeal, storageSetConflictMeal, storageSetMeal } from './meal-storage';
 
 // SETUP
-const { Storage } = Plugins;
 const log = getLogger('meal/meal-api')
 const axiosInstance = axios.create({
     baseURL: environment.urlApi
 });
 
-const config = {
+const config: AxiosRequestConfig = {
     headers: {
         'Content-Type': 'application/json'
     }
 };
 
-export async function storageSetMeal(meal: Meal) {
-    await Storage.set({
-        key: String(meal.id),
-        value: JSON.stringify(meal)
-    });
-}
+export const getMealById: (mealId: number) => Promise<Meal> = async mealId => {
+    const meal = await getStorageMealById(mealId);
+    let _config = config;
+    if (meal && meal.etag) {
+        _config.headers['If-None-Match'] = meal.etag;
+    }
 
-export async function clearMealsFromStorage() {
-    const importantKeys: string[] = ['token', 'user_id'];
-    await Storage
-        .keys()
-        .then(allKeys => {
-            allKeys.keys.forEach(key => {
-                if (importantKeys.indexOf(key) === -1) {
-                    Storage.remove({ key });
-                }
-            });
-        });
-}
-
-export const getMealById: (mealId: number) => Promise<Meal> = mealId => {
     const promise = axiosInstance
-        .get<Meal>(`/meal/${mealId}`, config)
-        .then(async (response) => {
-            await storageSetMeal(response.data);
-            return response.data
+        .get<Meal>(`/meal/${mealId}`, _config)
+        .then(response => {
+            log('getMealsById - API call.');
+            const result = response.data;
+            result.etag = response.headers['etag'];
+            return resolveMealResponse(result);
+        })
+        .catch(err => {
+            if (err.response.status === 304 && meal) {
+                log('getMealsById - 304 - getMealById from storage.');
+                return resolveMealResponse(meal);
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'getMealById', log);
 }
 
-export const getMeals: () => Promise<Meal[]> = () => {
+export async function getMealByIdCallback(mealId: number) {
+    getMealById(mealId);
+}
+
+export const getMeals: () => Promise<Meal[]> = async () => {
+    const key = 'getMeals';
+    const ettagedResponse = await getEtaggedResponse(key);
+    let _config = config;
+    if (ettagedResponse) {
+        _config.headers['If-None-Match'] = ettagedResponse.etag;
+    }
+
     const promise = axiosInstance
-        .get<Meal[]>(`/meal`, config)
+        .get<Meal[]>(`/meal`, _config)
         .then(response => {
-            clearMealsFromStorage();
-            response.data.forEach(async (_data) => await storageSetMeal(_data));
-            return response.data
+            log('getMeals - API call.');
+            saveEtaggedResponse(key, response.headers['etag'] as string, response.data);
+            return resolveMealArrayResponse(response.data, getMealByIdCallback);
+        })
+        .catch(err => {
+            if (err.response.status === 304 && ettagedResponse) {
+                log('getMeals - 304 - getMeals from storage.');
+                return resolveMealArrayResponse(ettagedResponse.payload, getMealByIdCallback);
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'getMeals', log);
 }
 
-export const getMealsByComment: (comment: String) => Promise<Meal[]> = (comment) => {
+export const getMealsByComment: (comment: String) => Promise<Meal[]> = async (comment) => {
+    const key = `getMealsByComment_${comment}`;
+    const ettagedResponse = await getEtaggedResponse(key);
+    let _config = config;
+    if (ettagedResponse) {
+        _config.headers['If-None-Match'] = ettagedResponse.etag;
+    }
+
     const promise = axiosInstance
-        .get<Meal[]>(`/meal/filter?comment=${comment}`, config)
+        .get<Meal[]>(`/meal/filter?comment=${comment}`, _config)
         .then(response => {
-            clearMealsFromStorage();
-            response.data.forEach(async (_data) => await storageSetMeal(_data));
-            return response.data
+            log('getMealsByComment - API call.');
+            saveEtaggedResponse(key, response.headers['etag'] as string, response.data);
+            return resolveMealArrayResponse(response.data, getMealByIdCallback);
+        })
+        .catch(err => {
+            if (err.response.status === 304 && ettagedResponse) {
+                log('getMealsByComment - 304 - getMealsByComment from storage.');
+                return resolveMealArrayResponse(ettagedResponse.payload, getMealByIdCallback);
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'getMeals', log);
 }
 
-export const getAllEatenMeals: () => Promise<Meal[]> = () => {
+export const getAllEatenMeals: () => Promise<Meal[]> = async () => {
+    const key = 'getAllEatenMeals';
+    const ettagedResponse = await getEtaggedResponse(key);
+    let _config = config;
+    if (ettagedResponse) {
+        _config.headers['If-None-Match'] = ettagedResponse.etag;
+    }
+
     const promise = axiosInstance
-        .get<Meal[]>(`/meal/eaten`, config)
+        .get<Meal[]>(`/meal/eaten`, _config)
         .then(response => {
-            clearMealsFromStorage();
-            response.data.forEach(async (_data) => await storageSetMeal(_data));
-            return response.data
+            log('getAllEatenMeals - API call.');
+            saveEtaggedResponse(key, response.headers['etag'] as string, response.data);
+            return resolveMealArrayResponse(response.data, getMealByIdCallback);
+        })
+        .catch(err => {
+            if (err.response.status === 304 && ettagedResponse) {
+                log('getAllEatenMeals - 304 - getAllEatenMeals from storage.');
+                return resolveMealArrayResponse(ettagedResponse.payload, getMealByIdCallback);
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'getMeals', log);
 }
 
-export const getMealsPaged: (page: number) => Promise<Meal[]> = (page) => {
+export const getMealsPaged: (page: number) => Promise<Meal[]> = async (page) => {
+    const key = `getMealsPaged_${page}`;
+    const ettagedResponse = await getEtaggedResponse(key);
+    let _config = config;
+    if (ettagedResponse) {
+        _config.headers['If-None-Match'] = ettagedResponse.etag;
+    }
+
     const promise = axiosInstance
-        .get<Meal[]>(`/meal?page=${page}&size=${environment.pageSize}&sortBy=date.desc`, config)
+        .get<Meal[]>(`/meal?page=${page}&size=${environment.pageSize}&sortBy=date.desc`, _config)
         .then(response => {
-            response.data.forEach(async (_data) => await storageSetMeal(_data));
-            return response.data
+            log('getMealsPaged - API call.');
+            saveEtaggedResponse(key, response.headers['etag'] as string, response.data);
+            return resolveMealArrayResponse(response.data, getMealByIdCallback);
+        })
+        .catch(err => {
+            if (err.response.status === 304 && ettagedResponse) {
+                log('getMealsPaged - 304 - getMealsPaged from storage.')
+                return resolveMealArrayResponse(ettagedResponse.payload, getMealByIdCallback);
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'getMeals', log);
@@ -100,20 +160,38 @@ export const getMealsPaged: (page: number) => Promise<Meal[]> = (page) => {
 export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
     const promise = axiosInstance
         .post<Meal>("/meal", meal, config)
-        .then(async (response) => {
-            await storageSetMeal(response.data);
-            return response.data
+        .then(response => {
+            return resolveMealResponse(response.data, getMealByIdCallback);
         });
 
     return execWithLogs(promise, 'saveMeal', log);
 }
 
-export const updateMeal: (meal: Meal) => Promise<Meal> = meal => {
+export const updateMeal: (meal: Meal) => Promise<Meal> = async (meal) => {
+    let _config = config;
+    if (meal.etag) {
+        _config.headers['If-Match'] = meal.etag;
+    }
+
     const promise = axiosInstance
-        .put<Meal>(`/meal/${meal.id}`, meal, config)
-        .then(async (response) => {
-            await storageSetMeal(response.data);
-            return response.data
+        .put<Meal>(`/meal/${meal.id}`, meal, _config)
+        .then(response => {
+            return resolveMealResponse(response.data, getMealByIdCallback);
+        })
+        .catch(async (err) => {
+            if (err.response.status === 412) {
+                if (meal.id) {
+                    meal.etag = undefined;
+                    await storageSetMeal(meal);
+                    getMealByIdCallback(meal.id);
+                }
+
+                storageSetConflictMeal(err.response.data); // Save conflict
+                meal.hasConflict = true;
+                return meal; // Return old
+            }
+
+            throw err;
         });
 
     return execWithLogs(promise, 'updateMeal', log);
@@ -122,9 +200,9 @@ export const updateMeal: (meal: Meal) => Promise<Meal> = meal => {
 export const deleteMeal: (mealId: number) => Promise<Meal> = mealId => {
     const promise = axiosInstance
         .delete<Meal>(`/meal/${mealId}`, config)
-        .then(async (response) => {
-            await Storage.remove({ key: String(response.data.id) });
-            return response.data
+        .then(response => {
+            storageRemoveMeal(mealId);
+            return response.data;
         });
 
     return execWithLogs(promise, 'deleteMeal', log);
@@ -151,11 +229,7 @@ export const setAuthorizationToken: (token: String, userId: number) => void = (t
     });
 }
 
-export async function isNetworkError(error: AxiosError): Promise<boolean> {
-    // if (!await NetInfo.fetch().then(state => state.isConnected)) {
-    //     return false;
-    // }
-
+export function isNetworkError(error: AxiosError): boolean {
     if (error.response !== undefined) {
         return false;
     }

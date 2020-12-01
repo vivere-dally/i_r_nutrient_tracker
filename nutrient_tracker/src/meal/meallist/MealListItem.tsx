@@ -1,6 +1,8 @@
-import { IonItem, IonLabel, IonNote } from '@ionic/react';
+import { IonIcon, IonItem, IonLabel, IonNote } from '@ionic/react';
+import { cloudDoneSharp, rainySharp, syncCircleSharp } from 'ionicons/icons';
 import moment from 'moment';
 import React from 'react';
+import { EntityState } from '../../core/entity';
 import { Meal } from '../meal';
 import './MealListItem.css';
 
@@ -11,7 +13,13 @@ interface MealListItemProps {
 const MealListItem: React.FC<MealListItemProps> = ({ meal }) => {
     return (
         <IonItem routerLink={`/meals/${meal.id}`} detail={false}>
-            <IonLabel className="ion-text-wrap">
+            {
+                meal.entityState &&
+                (meal.entityState === EntityState.UNCHANGED && (<IonIcon icon={cloudDoneSharp} />)) ||
+                (meal.hasConflict && meal.hasConflict === true && meal.entityState === EntityState.UPDATED && (<IonIcon icon={rainySharp} />)) ||
+                (<IonIcon icon={syncCircleSharp} />)
+            }
+            <IonLabel style={{ marginLeft: 10 }} className="ion-text-wrap">
                 <h2>
                     {moment(meal.date).fromNow()}
                     <span className="date">

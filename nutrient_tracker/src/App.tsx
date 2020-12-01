@@ -28,6 +28,7 @@ import { AuthenticationProvider } from './authentication/authentication-provider
 import { AuthenticationPage } from './authentication/component/AuthenticationPage';
 import { PrivateRoute } from './authentication/component/PrivateRoute';
 import { MealPageProvider } from './meal/meallist/MealPageContext';
+import MealConflictPage from './meal/mealconflict/MealConflictPage';
 
 const App: React.FC = () => (
   <IonApp>
@@ -45,6 +46,7 @@ const App: React.FC = () => (
             </MealPageProvider>
             <PrivateRoute path="/meals/:id" component={EditMealPage} exact={true} />
             <PrivateRoute path="/meal" component={EditMealPage} exact={true} />
+            <PrivateRoute path="/meals/:id/conflict" component={MealConflictPage} exact={true} />
           </MealProvider>
         </AuthenticationProvider>
       </IonRouterOutlet>

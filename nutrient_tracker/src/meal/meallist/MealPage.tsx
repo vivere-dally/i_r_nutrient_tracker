@@ -1,5 +1,5 @@
 import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToggle, IonToolbar } from "@ionic/react";
-import { add } from "ionicons/icons";
+import { add, cloudSharp, cloudOfflineSharp } from "ionicons/icons";
 import React, { useContext, useEffect, useState } from "react";
 import { RouteComponentProps } from "react-router";
 import { AuthenticationContext } from "../../authentication/authentication-provider";
@@ -8,15 +8,23 @@ import { MealContext } from "../meal-provider";
 import './MealPage.css';
 import MealListItem from "./MealListItem";
 import { MealPageContext } from "./MealPageContext";
+import { useNetworkStatus } from "../../core/network-status";
+import { getLogger } from "../../core/utils";
+import { syncMeals } from "../meal-sync";
+
+const log = getLogger('meal/meallist/MealPage.tsx');
 
 const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
-    const { data, actionError, actionType, executing, getByComment_, getAllEaten_, getPaged_, setReload_ } = useContext(MealContext);
+    const { data, actionError, actionType, executing, getByComment_, getAllEaten_, getPaged_, setReload_, save_, delete_, get_, update_ } = useContext(MealContext);
     const { logout_ } = useContext(AuthenticationContext);
+    const { networkStatus } = useNetworkStatus();
     const mealPageContext = useContext(MealPageContext);
 
     const [searchTextFilter, setSearchTextFilter] = useState(mealPageContext.searchText);
     const [isEatenFilter, setIsEatenFilter] = useState<boolean>(mealPageContext.isEaten);
     const [isInfiniteScrollingDisabled, setIsInfiniteScrollingDisabled] = useState<boolean>(mealPageContext.isInfiniteScrollingDisabled);
+    const [isSyncNeeded, setIsSyncNeeded] = useState<boolean>(false);
+    const [networkStatusState, setNetworkStatusState] = useState<boolean>(false);
 
     useEffect(() => {
         mealPageContext.setSearchText && mealPageContext.setSearchText(searchTextFilter);
@@ -35,6 +43,16 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
     useEffect(() => {
         mealPageContext.setIsInfiniteScrollingDisabled && mealPageContext.setIsInfiniteScrollingDisabled(isInfiniteScrollingDisabled);
     }, [isInfiniteScrollingDisabled]);
+
+    useEffect(() => {
+        if (!isSyncNeeded && networkStatus.connected) {
+            log('DO SYNC!');
+            save_ && delete_ && update_ && get_ && syncMeals(save_, delete_, update_, get_);
+        }
+
+        setIsSyncNeeded(networkStatus.connected);
+        setNetworkStatusState(networkStatus.connected);
+    }, [networkStatus]);
 
     const handleLogout = () => {
         mealPageContext.setIsInfiniteScrollingDisabled && mealPageContext.setIsInfiniteScrollingDisabled(false);
@@ -76,6 +94,13 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
         <IonPage id="meal-page">
             <IonHeader collapse="condense">
                 <IonToolbar>
+                    <IonButtons slot="start">
+                        {
+                            (networkStatusState && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudSharp} />)) ||
+                            (!networkStatusState && (networkStatus.connectionType === 'none' || networkStatus.connectionType === 'unknown') && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudOfflineSharp} />))
+                        }
+                        <IonLabel style={{ marginLeft: 10 }} >{networkStatus.connectionType}</IonLabel>
+                    </IonButtons>
                     <IonTitle>Meals</IonTitle>
                     <IonButtons slot="end">
                         <IonButton onClick={handleLogout}>Logout</IonButton>

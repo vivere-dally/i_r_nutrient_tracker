@@ -1,13 +1,14 @@
 import React, { useCallback, useContext, useEffect, useReducer, useState } from "react";
 import PropTypes from 'prop-types';
-import { Storage } from "@capacitor/core";
 import { State } from "../core/state";
 import { getLogger, getReducer } from "../core/utils";
-import { Meal } from "./meal";
+import { compareMeal, Meal } from "./meal";
 import { ActionState, ActionType } from "../core/action";
-import { deleteMeal, getAllEatenMeals, getMealById, getMeals, getMealsByComment, getMealsPaged, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, storageSetMeal, updateMeal } from "./meal-api";
+import { deleteMeal, getAllEatenMeals, getMealById, getMealsByComment, getMealsPaged, isNetworkError, newMealWebSocket, saveMeal, setAuthorizationToken, updateMeal } from "./meal-api";
 import { AuthenticationContext } from "../authentication/authentication-provider";
 import { environment } from "../environments/environment";
+import { EntityState } from "../core/entity";
+import { getStorageAllEatenMeals, getStorageMealById, getStorageMealsByComment, getStorageMealsPaged, storageRemoveMeal, storageSetMeal } from "./meal-storage";
 
 interface MealState extends State<Meal, number> {
     save_?: MealParamToPromise,
@@ -55,13 +56,13 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     const save_ = useCallback<MealParamToPromise>(saveMealCallback, []);
     const update_ = useCallback<MealParamToPromise>(updateMealCallback, []);
     const delete_ = useCallback<NumberParamToPromise>(deleteMealCallback, []);
-    const getById_ = useCallback<NumberParamToPromise>(getMealByIdCallback, []);
+    const get_ = useCallback<NumberParamToPromise>(getMealByIdCallback, []);
     const getByComment_ = useCallback<StringParamToPromise>(getByCommentCallback, [authenticationContext]);
     const getAllEaten_ = useCallback<VoidToPromise>(getAllEatenCallback, [authenticationContext]);
     const getPaged_ = useCallback<BooleanToBooleanPromise>(getPagedCallback, [authenticationContext, page]);
     const setReload_ = useCallback<BooleanToPromise>(setReloadCallback, []);
 
-    const value = { data, executing, actionType, actionError, save_, update_, delete_, getById_, getByComment_, getAllEaten_, getPaged_, setReload_ };
+    const value = { data, executing, actionType, actionError, save_, update_, delete_, get_, getByComment_, getAllEaten_, getPaged_, setReload_ };
 
     log('MealProvider - return');
     return (
@@ -80,9 +81,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('getMealByIdCallback - failure');
-            if (await isNetworkError(error)) {
-                const result = await Storage.get({ key: String(mealId) });
-                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: JSON.parse(result.value) });
+            if (isNetworkError(error)) {
+                const data: Meal | void = await getStorageMealById(mealId);
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: data });
                 return;
             }
 
@@ -126,33 +127,8 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('getMealsEffect - failure');
-            if (await isNetworkError(error)) {
-                var index: number = 0;
-                const offset: number = page * environment.pageSize;
-                const limit: number = offset + environment.pageSize;
-                const data: any[] = [];
-                await Storage
-                    .keys()
-                    .then(allKeys => {
-                        allKeys.keys.forEach(key => {
-                            Storage
-                                .get({ key })
-                                .then(result => {
-                                    try {
-                                        const object = JSON.parse(result.value);
-                                        if (object.userId === authenticationContext.id) {
-                                            if (offset <= index && index < limit) {
-                                                data.push(object);
-                                            }
-
-                                            index += 1;
-                                        }
-                                    }
-                                    catch { }
-                                })
-                        });
-                    });
-
+            if (isNetworkError(error)) {
+                const data: Meal[] = await getStorageMealsPaged(page);
                 pageSize = data.length;
                 if (!cancelled) {
                     if (page === 0) {
@@ -174,7 +150,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
     }
 
-    async function getByCommentCallback(comment: String) {
+    async function getByCommentCallback(comment: string) {
         if (!authenticationContext.isAuthenticated) {
             return;
         }
@@ -189,26 +165,8 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('getByCommentCallback - failure');
-            if (await isNetworkError(error)) {
-                const data: any[] = [];
-                await Storage
-                    .keys()
-                    .then(allKeys => {
-                        allKeys.keys.forEach(key => {
-                            Storage
-                                .get({ key })
-                                .then(result => {
-                                    try {
-                                        const object = JSON.parse(result.value);
-                                        if (object.userId === authenticationContext.id && object.comment!.startsWith(comment)) {
-                                            data.push(object);
-                                        }
-                                    }
-                                    catch { }
-                                })
-                        });
-                    });
-
+            if (isNetworkError(error)) {
+                const data: Meal[] = await getStorageMealsByComment(comment);
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
                 return;
             }
@@ -232,26 +190,8 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('getMealsEffect - failure');
-            if (await isNetworkError(error)) {
-                const data: any[] = [];
-                await Storage
-                    .keys()
-                    .then(allKeys => {
-                        allKeys.keys.forEach(key => {
-                            Storage
-                                .get({ key })
-                                .then(result => {
-                                    try {
-                                        const object = JSON.parse(result.value);
-                                        if (object.userId === authenticationContext.id && object.eaten) {
-                                            data.push(object);
-                                        }
-                                    }
-                                    catch { }
-                                })
-                        });
-                    });
-
+            if (isNetworkError(error)) {
+                const data: Meal[] = await getStorageAllEatenMeals();
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET, data: data });
                 return;
             }
@@ -268,8 +208,9 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('saveMealCallback - failure');
-            if (await isNetworkError(error)) {
+            if (isNetworkError(error)) {
                 meal.id = Math.floor(Math.random() * (1e10));
+                meal.entityState = EntityState.ADDED;
                 await storageSetMeal(meal);
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.SAVE, data: meal });
                 return;
@@ -283,11 +224,15 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('updateMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.UPDATE });
-            await updateMeal(meal);
+            const result: Meal = await updateMeal(meal);
+            if (compareMeal(meal, result)) {
+                dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: result });
+            }
         }
         catch (error) {
             log('updateMealCallback - failure');
-            if (await isNetworkError(error)) {
+            if (isNetworkError(error)) {
+                meal.entityState = EntityState.UPDATED;
                 await storageSetMeal(meal);
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: meal });
                 return;
@@ -305,8 +250,13 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         }
         catch (error) {
             log('deleteMealCallback - failure');
-            if (await isNetworkError(error)) {
-                await Storage.remove({ key: String(mealId) });
+            if (isNetworkError(error)) {
+                const meal: Meal | void = await getStorageMealById(mealId);
+                if (meal !== undefined) {
+                    meal.entityState = EntityState.DELETED;
+                    await storageSetMeal(meal);
+                }
+
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.DELETE, data: { id: mealId } });
                 return;
             }
@@ -330,7 +280,28 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
             if (payload.data.userId === authenticationContext.id) {
                 log(`wsEffect - received ${payload.data.entity}`);
-                dispatch({ actionType: payload.actionType, actionState: ActionState.SUCCEEDED, data: payload.data.entity });
+                const meal: Meal = { ...payload.data.entity, entityState: EntityState.UNCHANGED };
+                if (payload.actionType) {
+                    switch (payload.actionType) {
+                        case ActionType.SAVE:
+                        case ActionType.UPDATE:
+                            log(`WS - SET ${meal.id}`);
+                            storageSetMeal(meal);
+                            break
+
+                        case ActionType.DELETE:
+                            if (meal.id) {
+                                log(`WS - DELETE ${meal.id}`);
+                                storageRemoveMeal(meal.id);
+                            }
+
+                            break
+                        default:
+                            log('default')
+                    }
+                }
+
+                dispatch({ actionType: payload.actionType, actionState: ActionState.SUCCEEDED, data: meal });
             }
         });
 

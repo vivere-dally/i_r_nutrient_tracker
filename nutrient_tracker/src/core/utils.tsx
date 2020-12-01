@@ -1,7 +1,9 @@
-
+import { Plugins } from '@capacitor/core';
 import { ActionType, ActionState, ActionPayload } from "./action";
 import { Entity } from "./entity";
 import { State } from "./state";
+
+const { BackgroundTask } = Plugins;
 
 export const getLogger: (tag: string) =>
     (...args: any) =>
@@ -29,7 +31,6 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
                 return { ...state, executing: true, actionType: actionType, actionError: null };
             case ActionState.SUCCEEDED:
                 switch (actionType) {
-                    case ActionType.GET_ONE:
                     case ActionType.GET:
                         return { ...state, executing: false, data: data }
                     case ActionType.GET_PAGED:
@@ -37,6 +38,21 @@ export function getReducer<S extends State<E, T>, E extends Entity<T>, T>(): (st
                             ...state, executing: false, data: (function (): Entity<T>[] {
                                 const stateData = [...(state.data || [])];
                                 return stateData.concat(data);
+                            }())
+                        }
+                    case ActionType.GET_ONE:
+                        return {
+                            ...state, executing: false, data: (function (): Entity<T>[] {
+                                const stateData = [...(state.data || [])];
+                                const index = stateData.findIndex(it => it.id === data.id);
+                                if (index === -1) {
+                                    stateData.splice(0, 0, data);
+                                }
+                                else {
+                                    stateData[index] = data;
+                                }
+
+                                return stateData;
                             }())
                         }
                     case ActionType.SAVE:

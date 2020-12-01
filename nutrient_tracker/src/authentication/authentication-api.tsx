@@ -23,7 +23,7 @@ export interface AuthenticationProps extends Credentials {
 export const login: (credentials: Credentials) => Promise<AuthenticationProps> = (credentials) => {
     return execWithLogs(
         axiosInstance
-            .post<AuthenticationProps>("/login", credentials, config)
+            .post("/login", credentials, config)
             .then(async (response) => {
                 await Storage.set({ key: "token", value: response.headers['accesstoken'] });
                 const fullUser = await execWithLogs(

@@ -1,5 +1,5 @@
 import { IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonInput, IonItem, IonLabel, IonPage, IonToggle, IonToolbar } from '@ionic/react'
-import { trash } from 'ionicons/icons'
+import { constructSharp, trash } from 'ionicons/icons'
 import React from 'react'
 import { useContext, useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router'
@@ -22,6 +22,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     const [foods, setFoods] = useState<string>("");
     const [eaten, setEaten] = useState<boolean>(false);
     const [price, setPrice] = useState<number>(0.0);
+    const [hasConflict, setHasConflict] = useState<boolean>(false);
 
     // Effects
     useEffect(() => {
@@ -35,6 +36,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
             setFoods(meal.foods || "");
             setEaten(meal.eaten || false);
             setPrice(meal.price || 0.0);
+            setHasConflict(meal.hasConflict || false);
         }
     }, [match.params.id, mealContext.data]);
 
@@ -55,6 +57,10 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
     const handleDeleteMeal = () => {
         meal && meal.id && mealContext.delete_ && mealContext.delete_(meal.id).then(() => history.goBack());
+    }
+
+    const handleConflicts = () => {
+        history.push(`${match.params.id}/conflict`);
     }
 
     return (
@@ -95,6 +101,20 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
                     <IonLabel>Price</IonLabel>
                     <IonInput type="number" value={price} onIonChange={e => setPrice(Number(e.detail.value) || 0.0)} />
                 </IonItem>
+
+                {/* {
+                    !hasConflict && (
+                        <IonButtons slot="center">
+                            <IonButton onClick={handleConflicts}>Solve conflicts</IonButton>
+                        </IonButtons>
+                    )
+                } */}
+
+                <IonFab slot="fixed" vertical="bottom" horizontal="start">
+                    <IonFabButton onClick={handleConflicts}>
+                        <IonIcon icon={constructSharp} />
+                    </IonFabButton>
+                </IonFab>
 
                 <IonFab slot="fixed" vertical="bottom" horizontal="end">
                     <IonFabButton onClick={handleDeleteMeal}>
