@@ -42,7 +42,10 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
     }, [match.params.id, mealContext.data]);
 
     function handleSave() {
-        history.go(-2);
+        const meal: Meal = mealLeft ?
+            { ...mealLeft, comment: comment, date: date, foods: foods, eaten: eaten, price: price } :
+            { comment: comment, date: date, foods: foods, eaten: eaten, price: price };
+        mealContext.update_ && mealContext.update_(meal).then(() => history.go(-2));
     }
 
     return (
@@ -109,11 +112,11 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
                         <IonRow>
                             <IonCol>
                                 <IonRadio value={mealLeft?.eaten} />
-                                <IonLabel>IsEaten: {mealLeft?.eaten}</IonLabel>
+                                <IonLabel>IsEaten: {String(mealLeft?.eaten)}</IonLabel>
                             </IonCol>
                             <IonCol>
                                 <IonRadio value={mealRight?.eaten} />
-                                <IonLabel>IsEaten: {mealRight?.eaten}</IonLabel>
+                                <IonLabel>IsEaten: {String(mealRight?.eaten)}</IonLabel>
                             </IonCol>
                         </IonRow>
                     </IonRadioGroup>

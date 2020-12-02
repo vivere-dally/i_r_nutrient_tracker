@@ -9,6 +9,7 @@ import { AuthenticationContext } from "../authentication/authentication-provider
 import { environment } from "../environments/environment";
 import { EntityState } from "../core/entity";
 import { getStorageAllEatenMeals, getStorageMealById, getStorageMealsByComment, getStorageMealsPaged, storageRemoveMeal, storageSetMeal } from "./meal-storage";
+import { useNetworkStatus } from "../core/network-status";
 
 interface MealState extends State<Meal, number> {
     save_?: MealParamToPromise,
@@ -43,6 +44,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     // States
     const [state, dispatch] = useReducer(reducer, mealInitialState);
     const authenticationContext = useContext(AuthenticationContext);
+    const { networkStatus } = useNetworkStatus();
     const { data, executing, actionType, actionError } = state;
     const [page, setPage] = useState<number>(0);
     const [reload, setReload] = useState<boolean>(true);
@@ -50,7 +52,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
     // Effects
     useEffect(getFirstPageEffect, [authenticationContext.isAuthenticated, reload]);
-    useEffect(wsEffect, [authenticationContext.isAuthenticated]);
+    useEffect(wsEffect, [authenticationContext.isAuthenticated, networkStatus]);
 
     // Callbacks
     const save_ = useCallback<MealParamToPromise>(saveMealCallback, []);
@@ -201,6 +203,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     }
 
     async function saveMealCallback(meal: Meal) {
+        meal.entityState = EntityState.ADDED;
         try {
             log('saveMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.SAVE });
@@ -210,7 +213,6 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             log('saveMealCallback - failure');
             if (isNetworkError(error)) {
                 meal.id = Math.floor(Math.random() * (1e10));
-                meal.entityState = EntityState.ADDED;
                 await storageSetMeal(meal);
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.SAVE, data: meal });
                 return;
@@ -221,18 +223,18 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     }
 
     async function updateMealCallback(meal: Meal) {
+        meal.entityState = EntityState.UPDATED;
         try {
             log('updateMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.UPDATE });
             const result: Meal = await updateMeal(meal);
-            if (compareMeal(meal, result)) {
+            if (result.hasConflict === true || compareMeal(meal, result)) {
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: result });
             }
         }
         catch (error) {
             log('updateMealCallback - failure');
             if (isNetworkError(error)) {
-                meal.entityState = EntityState.UPDATED;
                 await storageSetMeal(meal);
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.UPDATE, data: meal });
                 return;
@@ -243,6 +245,12 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     }
 
     async function deleteMealCallback(mealId: number) {
+        const meal: Meal | void = await getStorageMealById(mealId);
+        if (meal !== undefined) {
+            meal.entityState = EntityState.DELETED;
+            await storageSetMeal(meal);
+        }
+
         try {
             log('deleteMealCallback - start');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.DELETE });
@@ -251,12 +259,6 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         catch (error) {
             log('deleteMealCallback - failure');
             if (isNetworkError(error)) {
-                const meal: Meal | void = await getStorageMealById(mealId);
-                if (meal !== undefined) {
-                    meal.entityState = EntityState.DELETED;
-                    await storageSetMeal(meal);
-                }
-
                 dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.DELETE, data: { id: mealId } });
                 return;
             }
@@ -271,7 +273,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     }
 
     function wsEffect() {
-        let cancelled = false;
+        let cancelled: boolean = !networkStatus.connected;
         log('wsEffect - connecting');
         let webSocket = newMealWebSocket(payload => {
             if (cancelled) {

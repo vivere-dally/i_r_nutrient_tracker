@@ -102,19 +102,16 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
                     <IonInput type="number" value={price} onIonChange={e => setPrice(Number(e.detail.value) || 0.0)} />
                 </IonItem>
 
-                {/* {
-                    !hasConflict && (
-                        <IonButtons slot="center">
-                            <IonButton onClick={handleConflicts}>Solve conflicts</IonButton>
-                        </IonButtons>
+                {
+                    hasConflict && (
+                        <IonFab slot="fixed" vertical="bottom" horizontal="start">
+                            <IonFabButton onClick={handleConflicts}>
+                                <IonIcon icon={constructSharp} />
+                            </IonFabButton>
+                        </IonFab>
                     )
-                } */}
+                }
 
-                <IonFab slot="fixed" vertical="bottom" horizontal="start">
-                    <IonFabButton onClick={handleConflicts}>
-                        <IonIcon icon={constructSharp} />
-                    </IonFabButton>
-                </IonFab>
 
                 <IonFab slot="fixed" vertical="bottom" horizontal="end">
                     <IonFabButton onClick={handleDeleteMeal}>

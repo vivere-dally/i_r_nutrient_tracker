@@ -18,7 +18,11 @@ export async function syncMeals(
             switch (meal.entityState) {
                 case EntityState.ADDED:
                     log(`${meal.id} - ADDED`);
-                    saveMealCallback(meal);
+                    await saveMealCallback(meal);
+                    if (meal.id) {
+                        storageRemoveMeal(meal.id);
+                    }
+
                     break;
 
                 case EntityState.DELETED:

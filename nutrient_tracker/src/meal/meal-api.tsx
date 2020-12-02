@@ -168,6 +168,13 @@ export const saveMeal: (meal: Meal) => Promise<Meal> = meal => {
 }
 
 export const updateMeal: (meal: Meal) => Promise<Meal> = async (meal) => {
+    if (meal.id) {
+        const _meal = await getStorageMealById(meal.id);
+        if (_meal) {
+            meal.etag = _meal.etag;
+        }
+    }
+
     let _config = config;
     if (meal.etag) {
         _config.headers['If-Match'] = meal.etag;
@@ -179,6 +186,11 @@ export const updateMeal: (meal: Meal) => Promise<Meal> = async (meal) => {
             return resolveMealResponse(response.data, getMealByIdCallback);
         })
         .catch(async (err) => {
+            if (err.message === 'Network Error') {
+                await storageSetMeal(meal);
+                return meal;
+            }
+
             if (err.response.status === 412) {
                 if (meal.id) {
                     meal.etag = undefined;
