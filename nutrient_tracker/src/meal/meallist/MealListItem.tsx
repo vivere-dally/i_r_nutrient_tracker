@@ -1,4 +1,4 @@
-import { IonIcon, IonItem, IonLabel, IonNote } from '@ionic/react';
+import { IonIcon, IonImg, IonItem, IonLabel, IonNote, IonThumbnail } from '@ionic/react';
 import { cloudDoneSharp, rainySharp, syncCircleSharp } from 'ionicons/icons';
 import moment from 'moment';
 import React from 'react';
@@ -18,6 +18,14 @@ const MealListItem: React.FC<MealListItemProps> = ({ meal }) => {
                 (meal.entityState === EntityState.UNCHANGED && (<IonIcon icon={cloudDoneSharp} />)) ||
                 (meal.hasConflict && meal.hasConflict === true && meal.entityState === EntityState.UPDATED && (<IonIcon icon={rainySharp} />)) ||
                 (<IonIcon icon={syncCircleSharp} />)
+            }
+            {
+                meal.photo &&
+                (
+                    <IonThumbnail>
+                        <IonImg src={meal.photo} />
+                    </IonThumbnail>
+                )
             }
             <IonLabel style={{ marginLeft: 10 }} className="ion-text-wrap">
                 <h2>

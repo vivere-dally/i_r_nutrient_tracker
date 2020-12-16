@@ -1,4 +1,4 @@
-import { IonBackButton, IonButton, IonButtons, IonCol, IonContent, IonGrid, IonHeader, IonItem, IonLabel, IonPage, IonRadio, IonRadioGroup, IonRow, IonTitle, IonToolbar } from "@ionic/react";
+import { IonBackButton, IonButton, IonButtons, IonCol, IonContent, IonGrid, IonHeader, IonImg, IonItem, IonLabel, IonPage, IonRadio, IonRadioGroup, IonRow, IonThumbnail, IonTitle, IonToolbar } from "@ionic/react";
 import React, { useContext, useEffect, useState } from "react";
 import { RouteComponentProps } from "react-router"
 import { getLogger } from "../../core/utils"
@@ -20,6 +20,9 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
     const [foods, setFoods] = useState<string>("");
     const [eaten, setEaten] = useState<boolean>(false);
     const [price, setPrice] = useState<number>(0.0);
+    const [photo, setPhoto] = useState<string>("");
+    const [latitude, setLatitude] = useState<number>();
+    const [longitude, setLongitude] = useState<number>();
 
     useEffect(() => {
         log('useEffect');
@@ -38,13 +41,16 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
             setFoods(_meal.foods!);
             setEaten(_meal.eaten!);
             setPrice(_meal.price!);
+            setPhoto(_meal.photo!);
+            setLatitude(_meal.latitude!);
+            setLongitude(_meal.longitude!);
         }
     }, [match.params.id, mealContext.data]);
 
     function handleSave() {
         const meal: Meal = mealLeft ?
-            { ...mealLeft, comment: comment, date: date, foods: foods, eaten: eaten, price: price } :
-            { comment: comment, date: date, foods: foods, eaten: eaten, price: price };
+            { ...mealLeft, comment: comment, date: date, foods: foods, eaten: eaten, price: price, photo: photo, latitude: latitude, longitude: longitude } :
+            { comment: comment, date: date, foods: foods, eaten: eaten, price: price, photo: photo, latitude: latitude, longitude: longitude };
         mealContext.update && mealContext.update(meal).then(() => {
             const routeId = match.params.id || '';
             deleteStoredMealById(Number(routeId), true);
@@ -135,6 +141,52 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
                             <IonCol>
                                 <IonRadio value={mealRight?.price} />
                                 <IonLabel>Price: {mealRight?.price}</IonLabel>
+                            </IonCol>
+                        </IonRow>
+                    </IonRadioGroup>
+
+                    {/* LATITUDE */}
+                    <IonRadioGroup value={latitude} onIonChange={e => setLatitude(e.detail.value)}>
+                        <IonRow>
+                            <IonCol>
+                                <IonRadio value={mealLeft?.latitude} />
+                                <IonLabel>Latitude: {mealRight?.latitude}</IonLabel>
+                            </IonCol>
+                            <IonCol>
+                                <IonRadio value={mealRight?.latitude} />
+                                <IonLabel>Latitude: {mealRight?.latitude}</IonLabel>
+                            </IonCol>
+                        </IonRow>
+                    </IonRadioGroup>
+
+                    {/* LONGITUDE */}
+                    <IonRadioGroup value={longitude} onIonChange={e => setLongitude(e.detail.value)}>
+                        <IonRow>
+                            <IonCol>
+                                <IonRadio value={mealLeft?.longitude} />
+                                <IonLabel>Longitude: {mealRight?.longitude}</IonLabel>
+                            </IonCol>
+                            <IonCol>
+                                <IonRadio value={mealRight?.longitude} />
+                                <IonLabel>Longitude: {mealRight?.longitude}</IonLabel>
+                            </IonCol>
+                        </IonRow>
+                    </IonRadioGroup>
+
+                    {/* PHOTO */}
+                    <IonRadioGroup value={photo} onIonChange={e => setPhoto(e.detail.value)}>
+                        <IonRow>
+                            <IonCol>
+                                <IonRadio value={mealLeft?.photo} />
+                                <IonThumbnail>
+                                    <IonImg src={mealLeft?.photo} alt="This meal has no photo..." />
+                                </IonThumbnail>
+                            </IonCol>
+                            <IonCol>
+                                <IonRadio value={mealRight?.photo} />
+                                <IonThumbnail>
+                                    <IonImg src={mealRight?.photo} alt="This meal has no photo..." />
+                                </IonThumbnail>
                             </IonCol>
                         </IonRow>
                     </IonRadioGroup>

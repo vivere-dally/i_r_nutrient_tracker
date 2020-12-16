@@ -38,3 +38,7 @@
 #edit-meal-page p {
   line-height: 22px;
 }
+
+#edit-meal-page ion-img {
+  width: px;
+}
