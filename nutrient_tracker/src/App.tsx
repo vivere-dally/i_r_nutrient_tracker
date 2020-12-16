@@ -27,7 +27,6 @@ import EditMealPage from './meal/mealedit/EditMealPage';
 import { AuthenticationProvider } from './authentication/authentication-provider';
 import { AuthenticationPage } from './authentication/component/AuthenticationPage';
 import { PrivateRoute } from './authentication/component/PrivateRoute';
-import { MealPageProvider } from './meal/meallist/MealPageContext';
 import MealConflictPage from './meal/mealconflict/MealConflictPage';
 
 const App: React.FC = () => (
@@ -41,9 +40,7 @@ const App: React.FC = () => (
 
           <MealProvider>
             {/* Meal Provider Routes */}
-            <MealPageProvider>
-              <PrivateRoute path="/meals" component={MealPage} exact={true} />
-            </MealPageProvider>
+            <PrivateRoute path="/meals" component={MealPage} exact={true} />
             <PrivateRoute path="/meals/:id" component={EditMealPage} exact={true} />
             <PrivateRoute path="/meal" component={EditMealPage} exact={true} />
             <PrivateRoute path="/meals/:id/conflict" component={MealConflictPage} exact={true} />

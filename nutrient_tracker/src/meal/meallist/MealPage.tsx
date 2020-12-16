@@ -1,5 +1,5 @@
-import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonTitle, IonToggle, IonToolbar } from "@ionic/react";
-import { add, cloudSharp, cloudOfflineSharp } from "ionicons/icons";
+import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonSelect, IonSelectOption, IonTitle, IonToast, IonToggle, IonToolbar } from "@ionic/react";
+import { add, cloudSharp, cloudOfflineSharp, filter } from "ionicons/icons";
 import React, { useContext, useEffect, useState } from "react";
 import { RouteComponentProps } from "react-router";
 import { AuthenticationContext } from "../../authentication/authentication-provider";
@@ -7,86 +7,59 @@ import { ActionType } from "../../core/action";
 import { MealContext } from "../meal-provider";
 import './MealPage.css';
 import MealListItem from "./MealListItem";
-import { MealPageContext } from "./MealPageContext";
 import { useNetworkStatus } from "../../core/network-status";
 import { getLogger } from "../../core/utils";
 import { syncMeals } from "../meal-sync";
+import { useStoredState } from "../../core/stored-state";
 
 const log = getLogger('meal/meallist/MealPage.tsx');
 
 const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
-    const { data, actionError, actionType, executing, getByComment_, getAllEaten_, getPaged_, setReload_, save_, delete_, get_, update_ } = useContext(MealContext);
+    const { data, actionError, actionType, executing, create, read, update, remove, removeFromState, get } = useContext(MealContext);
     const { logout_ } = useContext(AuthenticationContext);
     const { networkStatus } = useNetworkStatus();
-    const mealPageContext = useContext(MealPageContext);
-
-    const [searchTextFilter, setSearchTextFilter] = useState(mealPageContext.searchText);
-    const [isEatenFilter, setIsEatenFilter] = useState<boolean>(mealPageContext.isEaten);
-    const [isInfiniteScrollingDisabled, setIsInfiniteScrollingDisabled] = useState<boolean>(mealPageContext.isInfiniteScrollingDisabled);
+    const [networkStatusConnected, setNetworkStatusConnected] = useState<boolean>(false);
     const [isSyncNeeded, setIsSyncNeeded] = useState<boolean>(false);
-    const [networkStatusState, setNetworkStatusState] = useState<boolean>(false);
+
+    const [commentFilter, setCommentFilter] = useStoredState<string | undefined>('mealPagecommentFilter', '');
+    const [isEatentFilter, setIsEatenFilter] = useStoredState<boolean | undefined>('mealPageIsEatentFilter', undefined);
+    const [isInfiniteScrollingDisabled, setIsInfiniteScrollingDisabled] = useState<boolean>(false);
+    const [filtersChanged, setFiltersChanged] = useState<boolean>(false);
 
     useEffect(() => {
-        mealPageContext.setSearchText && mealPageContext.setSearchText(searchTextFilter);
-        if (searchTextFilter) {
-            getByComment_ && getByComment_(searchTextFilter);
-        }
-    }, [searchTextFilter]);
-
-    useEffect(() => {
-        mealPageContext.setIsEaten && mealPageContext.setIsEaten(isEatenFilter);
-        if (isEatenFilter) {
-            getAllEaten_ && getAllEaten_();
-        }
-    }, [isEatenFilter]);
-
-    useEffect(() => {
-        mealPageContext.setIsInfiniteScrollingDisabled && mealPageContext.setIsInfiniteScrollingDisabled(isInfiniteScrollingDisabled);
-    }, [isInfiniteScrollingDisabled]);
-
-    useEffect(() => {
-        if (!isSyncNeeded && networkStatus.connected) {
-            log('DO SYNC!');
-            save_ && delete_ && update_ && get_ && syncMeals(save_, delete_, update_, get_);
+        if (isSyncNeeded && !networkStatusConnected && networkStatus.connected) {
+            log('SYNC!');
+            create && update && remove && removeFromState && syncMeals(create, update, remove, removeFromState);
+            setIsSyncNeeded(false);
+        } else if (!networkStatus.connected) {
+            setIsSyncNeeded(true);
         }
 
-        setIsSyncNeeded(networkStatus.connected);
-        setNetworkStatusState(networkStatus.connected);
+        setNetworkStatusConnected(networkStatus.connected);
     }, [networkStatus]);
 
+    useEffect(() => {
+        if (filtersChanged) {
+            next();
+            setFiltersChanged(false);
+        }
+    }, [commentFilter, isEatentFilter])
+
     const handleLogout = () => {
-        mealPageContext.setIsInfiniteScrollingDisabled && mealPageContext.setIsInfiniteScrollingDisabled(false);
-        setReload_ && setReload_(true);
         logout_ && logout_();
     }
 
-    const handleSearchTextFilter: (value: string | undefined) => void = value => {
-        if (searchTextFilter && !value) {
-            setIsInfiniteScrollingDisabled(false);
-            setReload_ && setReload_(true);
-        }
-        else {
-            setIsInfiniteScrollingDisabled(true);
-        }
-
-        setSearchTextFilter(value || '');
-    }
-
-    const handleIsEatenFilter: (value: boolean) => void = value => {
-        if (isEatenFilter && !value) {
-            setIsInfiniteScrollingDisabled(false);
-            setReload_ && setReload_(true);
-        }
-        else {
-            setIsInfiniteScrollingDisabled(true);
-        }
-
-        setIsEatenFilter(value);
+    const next = () => {
+        const result = get && get(false, commentFilter || null, (isEatentFilter === undefined) ? null : isEatentFilter);
+        result?.then(reachedEnd => {
+            if (reachedEnd != null) {
+                setIsInfiniteScrollingDisabled(reachedEnd);
+            }
+        });
     }
 
     const handleNext: (e: CustomEvent<void>) => void = e => {
-        const result = getPaged_ && getPaged_(false);
-        result?.then(isDone => { if (isDone != null && isDone) { setIsInfiniteScrollingDisabled(true) } });
+        next();
         (e.target as HTMLIonInfiniteScrollElement).complete()
     }
 
@@ -96,8 +69,8 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
                 <IonToolbar>
                     <IonButtons slot="start">
                         {
-                            (networkStatusState && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudSharp} />)) ||
-                            (!networkStatusState && (networkStatus.connectionType === 'none' || networkStatus.connectionType === 'unknown') && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudOfflineSharp} />))
+                            (networkStatusConnected && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudSharp} />)) ||
+                            (!networkStatusConnected && (networkStatus.connectionType === 'none' || networkStatus.connectionType === 'unknown') && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudOfflineSharp} />))
                         }
                         <IonLabel style={{ marginLeft: 10 }} >{networkStatus.connectionType}</IonLabel>
                     </IonButtons>
@@ -107,10 +80,14 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
                     </IonButtons>
                 </IonToolbar>
                 <IonToolbar>
-                    <IonSearchbar value={searchTextFilter} onIonChange={e => handleSearchTextFilter(e.detail.value)}></IonSearchbar>
+                    <IonSearchbar value={commentFilter} onIonChange={e => { setFiltersChanged(true); setCommentFilter(e.detail.value); }}></IonSearchbar>
                     <IonItem>
                         <IonLabel>Is Eaten</IonLabel>
-                        <IonToggle checked={isEatenFilter} onIonChange={e => handleIsEatenFilter(e.detail.checked)} />
+                        <IonSelect value={String(isEatentFilter)} onIonChange={e => { setFiltersChanged(true); setIsEatenFilter((e.detail.value === 'undefined') ? undefined : e.detail.value === 'true'); }}>
+                            <IonSelectOption value={'undefined'}>All</IonSelectOption>
+                            <IonSelectOption value={'true'}>Yes</IonSelectOption>
+                            <IonSelectOption value={'false'}>No</IonSelectOption>
+                        </IonSelect>
                     </IonItem>
                 </IonToolbar>
             </IonHeader>
@@ -140,7 +117,11 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
                 }
                 {
                     !executing && actionError && (
-                        <IonLabel>{actionError.message}</IonLabel>
+                        <IonToast
+                            isOpen={actionError !== null || actionError !== undefined}
+                            message={actionError.message}
+                            position={"bottom"}
+                        />
                     )
                 }
 

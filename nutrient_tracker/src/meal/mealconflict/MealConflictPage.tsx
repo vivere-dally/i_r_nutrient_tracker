@@ -4,7 +4,7 @@ import { RouteComponentProps } from "react-router"
 import { getLogger } from "../../core/utils"
 import { Meal } from "../meal";
 import { MealContext } from "../meal-provider";
-import { getStorageMealConflictById } from "../meal-storage";
+import { deleteStoredMealById, getStoredMealById } from "../meal-storage";
 
 const log = getLogger('meal/component/MealConflictPage')
 interface MealProps extends RouteComponentProps<{
@@ -27,7 +27,7 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
         const _meal = mealContext.data?.find(it => it.id === Number(routeId));
         setMealLeft(_meal);
         (async () => {
-            const meal_ = await getStorageMealConflictById(Number(routeId));
+            const meal_ = await getStoredMealById(Number(routeId), true);
             if (meal_) {
                 setMealRight(meal_);
             }
@@ -45,7 +45,11 @@ const MealConflictPage: React.FC<MealProps> = ({ history, match }) => {
         const meal: Meal = mealLeft ?
             { ...mealLeft, comment: comment, date: date, foods: foods, eaten: eaten, price: price } :
             { comment: comment, date: date, foods: foods, eaten: eaten, price: price };
-        mealContext.update_ && mealContext.update_(meal).then(() => history.go(-2));
+        mealContext.update && mealContext.update(meal).then(() => {
+            const routeId = match.params.id || '';
+            deleteStoredMealById(Number(routeId), true);
+            history.go(-2);
+        });
     }
 
     return (

@@ -1,51 +1,51 @@
 import { EntityState } from "../core/entity";
 import { getLogger } from "../core/utils";
 import { Meal } from "./meal";
-import { MealParamToPromise, NumberParamToPromise } from "./meal-provider";
-import { getStorageAllMeals, storageRemoveMeal } from "./meal-storage";
+import { getStoredMeals } from "./meal-storage";
 
 const log = getLogger('meal/meal-sync');
 
 export async function syncMeals(
-    saveMealCallback: MealParamToPromise,
-    deleteMealCallback: NumberParamToPromise,
-    updateMealCallback: MealParamToPromise,
-    getMealbyIdCallback: NumberParamToPromise
+    create: (meal: Meal) => Promise<any>,
+    update: (meal: Meal) => Promise<any>,
+    remove: (mealId: number) => Promise<any>,
+    removeFromState: (mealId: number) => Promise<any>
 ) {
     try {
-        const meals: Meal[] = await getStorageAllMeals();
+        const meals: Meal[] = await getStoredMeals();
         meals.forEach(async (meal: Meal) => {
             switch (meal.entityState) {
                 case EntityState.ADDED:
-                    log(`${meal.id} - ADDED`);
-                    await saveMealCallback(meal);
+                    log(`[syncMeals] ADDED ${meal.id}`);
+                    await create(meal);
                     if (meal.id) {
-                        storageRemoveMeal(meal.id);
+                        removeFromState(meal.id);
                     }
 
                     break;
 
                 case EntityState.DELETED:
-                    log(`${meal.id} - DELETED`);
+                    log(`[syncMeals] DELETED ${meal.id}`);
                     if (meal.id) {
-                        deleteMealCallback(meal.id);
-                        storageRemoveMeal(meal.id);
+                        remove(meal.id);
                     }
 
                     break;
 
                 case EntityState.UPDATED:
-                    log('TODO');
-                    updateMealCallback(meal);
+                    log(`[syncMeals] UPDATED ${meal.id}`);
+                    if (!meal.hasConflict) {
+                        update(meal);
+                    }
+
                     break;
 
                 case EntityState.UNCHANGED:
                 default:
-                    log('DEFAULT');
+                    log(`[syncMeals] UNCHANGED ${meal.id}`);
             }
         });
-    }
-    catch (err) {
-        log(JSON.stringify(err));
+    } catch (error) {
+        log(`[syncMeals] ERROR\n${JSON.stringify(error)}`);
     }
 }

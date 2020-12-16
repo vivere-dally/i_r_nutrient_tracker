@@ -1,181 +1,224 @@
 import { EntityState } from "../core/entity";
 import { Meal } from "./meal";
 import { Plugins } from "@capacitor/core";
+import { getLogger } from "../core/utils";
+import { deleteMealByIdApi, getMealByIdApi, getMealsApi, MealBatch, saveMealApi, updateMealApi } from "./meal-api";
 import { environment } from "../environments/environment";
 
 const { Storage } = Plugins;
+const log = getLogger('meal/meal-storage');
 
-function getMealKey(mealId: number | undefined): string {
-    return `meal_${mealId}`;
+function __key(id: number | undefined, conflict: boolean): string {
+    if (conflict) {
+        return `conflict_meal_${id}`;
+    }
+
+    return `meal_${id}`;
 }
 
-export async function storageSetMeal(meal: Meal) {
+export async function storageSetMeal(meal: Meal, conflict: boolean = false) {
     await Storage.set({
-        key: getMealKey(meal.id),
+        key: __key(meal.id, conflict),
         value: JSON.stringify(meal)
     });
 }
 
-export async function storageSetConflictMeal(meal: Meal) {
-    await Storage.set({
-        key: `${getMealKey(meal.id)}_conflict`,
-        value: JSON.stringify(meal)
-    });
-}
+//#region CRUD
 
-export async function storageRemoveMeal(mealId: number) {
-    await Storage.remove({ key: getMealKey(mealId) });
-}
-
-export function resolveMealResponse(meal: Meal, callback: ((mealId: number) => Promise<void>) | undefined = undefined): Meal {
-    const _meal: Meal = { ...meal, entityState: EntityState.UNCHANGED };
-    (async () => {
-        await storageSetMeal(_meal);
-
-        if (_meal.id && callback) {
-            await callback(_meal.id);
+export async function saveMeal(meal: Meal): Promise<Meal> {
+    meal.entityState = EntityState.ADDED;
+    try {
+        const apiMeal: Meal = await saveMealApi(meal);
+        const _apiMeal: Meal | void = await getMealByIdApi(apiMeal.id!, null);
+        if (_apiMeal) { // With ETag
+            _apiMeal.entityState = EntityState.UNCHANGED;
+            await storageSetMeal(_apiMeal);
+            return _apiMeal;
+        } else { // Without ETag
+            apiMeal.entityState = EntityState.UNCHANGED;
+            await storageSetMeal(apiMeal);
+            return apiMeal;
         }
-    })();
-
-    return _meal;
+    } catch (error) {
+        log(`[saveMeal]: ERROR ${JSON.stringify(error)}.`);
+        storageSetMeal(meal);
+        return meal;
+    }
 }
 
-export function resolveMealArrayResponse(meals: Meal[], callback: ((mealId: number) => Promise<void>) | undefined = undefined): Meal[] {
-    const _meals: Meal[] = meals.map(meal => {
-        const _meal: Meal = { ...meal, entityState: EntityState.UNCHANGED };
-        (async () => {
-            await storageSetMeal(_meal);
-            if (callback && _meal.id) {
-                await callback(_meal.id);
+export async function getStoredMealById(mealId: number, conflict: boolean = false): Promise<Meal | void> {
+    const result = await Storage
+        .get({ key: __key(mealId, conflict) })
+        .then(result => result.value)
+        .catch(() => null);
+
+    if (result) {
+        log(`[getMealById] return meal with id ${mealId}`);
+        return JSON.parse(result);
+    }
+}
+
+export async function getMealById(mealId: number): Promise<Meal> {
+    const storedMeal: Meal | void = await getStoredMealById(mealId);
+    let etag = null;
+    if (storedMeal && storedMeal.etag) {
+        etag = storedMeal.etag;
+    }
+
+    try {
+        const apiMeal: Meal | void = await getMealByIdApi(mealId, etag);
+        if (apiMeal) {
+            apiMeal.entityState = EntityState.UNCHANGED;
+            await storageSetMeal(apiMeal);
+            return apiMeal;
+        }
+    } catch (error) {
+        log(`[getMealById]: ERROR ${JSON.stringify(error)}.`);
+    }
+
+    return storedMeal as Meal; // Cannot be void at this point...
+}
+
+export async function updateMeal(meal: Meal): Promise<Meal> {
+    meal.entityState = EntityState.UPDATED;
+    try {
+        const apiMeal: Meal = await updateMealApi(meal); // Updates meal.hasConflict if 412
+        apiMeal.etag = (await getMealById(meal.id!)).etag;
+        apiMeal.entityState = EntityState.UNCHANGED;
+        if (meal.hasConflict) {
+            meal.etag = apiMeal.etag;
+            await storageSetMeal(meal); // Set hasConflict & new etag
+            await storageSetMeal(apiMeal, true); // Set conflicted meal
+            return meal;
+        } else {
+            deleteStoredMealById(meal.id!, true); // Delete conflict if any
+        }
+
+        await storageSetMeal(apiMeal);
+        return apiMeal;
+    } catch (error) {
+        log(`[deleteMealById]: ERROR ${JSON.stringify(error)}.`);
+        await storageSetMeal(meal);
+        return meal;
+    }
+}
+
+export async function deleteStoredMealById(mealId: number, conflict: boolean = false): Promise<Meal | void> {
+    const storedMeal: Meal | void = await getStoredMealById(mealId, conflict);
+    await Storage.remove({ key: __key(mealId, conflict) });
+    return storedMeal;
+}
+
+export async function deleteMealById(mealId: number): Promise<Meal | void> {
+    try {
+        const meal: Meal = await deleteMealByIdApi(mealId);
+        await deleteStoredMealById(mealId);
+        return meal;
+    } catch (error) {
+        log(`[deleteMealById]: ERROR ${JSON.stringify(error)}.`);
+    }
+
+    const meal: Meal | void = await getStoredMealById(mealId);
+    if (meal) {
+        meal.entityState = EntityState.DELETED;
+        await storageSetMeal(meal);
+    }
+}
+
+//#endregion
+
+export async function getStoredMeals(): Promise<Meal[]> {
+    const meals: Meal[] = [];
+    await Storage
+        .keys()
+        .then(allKeys => {
+            allKeys
+                .keys
+                .forEach(key => {
+                    if (key.indexOf('meal_') >= 0) {
+                        Storage
+                            .get({ key })
+                            .then(result => {
+                                try {
+                                    if (result.value) {
+                                        const meal: Meal = JSON.parse(result.value);
+                                        meals.push(meal);
+                                    }
+                                } catch { }
+                            })
+                    }
+                });
+        });
+
+    return meals;
+}
+
+export async function getMeals(page: number, byComment: string | null, isEaten: boolean | null): Promise<Meal[]> {
+    const key: string = `meals_${page}_${byComment}_${isEaten}`;
+    const value: string | null = await Storage.get({ key: key }).then(result => result.value);
+    let etag: string | null = null;
+    let mealStoredBatch: MealBatch | null = null;
+    if (value) {
+        mealStoredBatch = JSON.parse(value);
+        if (mealStoredBatch?.etag) {
+            etag = mealStoredBatch.etag;
+        }
+    }
+
+    // Get from API & Store
+    try {
+        const mealBatch: MealBatch | void = await getMealsApi(page, byComment, isEaten, etag);
+        if (mealBatch) {
+            const meals: Meal[] = [];
+            for (let index = 0; index < mealBatch.meals.length; index++) {
+                const mealWithEtag: Meal = await getMealById(mealBatch.meals[index].id!);
+                meals.push(mealWithEtag);
             }
-        })();
-        return _meal;
-    });
 
-    return _meals;
-}
+            mealBatch.meals = meals;
+            await Storage.set({
+                key: key,
+                value: JSON.stringify(mealBatch)
+            });
 
-export async function getStorageMealById(mealId: number): Promise<Meal | void> {
-    const result = await Storage.get({ key: getMealKey(mealId) }).then(result => result.value);
-    if (result) {
-        const meal: Meal = JSON.parse(result);
-        return meal;
+            return mealBatch.meals;
+        }
+    } catch (error) {
+        log(`[getMeals]: ERROR ${JSON.stringify(error)}.`);
     }
-}
 
-export async function getStorageMealConflictById(mealId: number): Promise<Meal | void> {
-    const result = await Storage.get({ key: `${getMealKey(mealId)}_conflict` }).then(result => result.value);
-    if (result) {
-        const meal: Meal = JSON.parse(result);
-        return meal;
+    // API Call failed. Return stored if possible
+    if (mealStoredBatch && mealStoredBatch.meals) {
+        return mealStoredBatch.meals;
     }
-}
 
-export async function getStorageMealsPaged(page: number): Promise<Meal[]> {
+    // Collect the available results
     var index: number = 0;
     const offset: number = page * environment.pageSize;
     const limit: number = offset + environment.pageSize;
     const meals: Meal[] = [];
-    await Storage
-        .keys()
-        .then(allKeys => {
-            allKeys.keys.forEach(key => {
-                if (key.indexOf('meal_') >= 0) {
-                    Storage
-                        .get({ key })
-                        .then(result => {
-                            try {
-                                if (result.value) {
-                                    const object = JSON.parse(result.value);
-                                    if (offset <= index && index < limit) {
-                                        meals.push(object);
-                                        index += 1;
-                                    }
-                                }
-                            }
-                            catch { }
-                        })
+    (await getStoredMeals())
+        .sort((a, b) => {
+            if (a.dateEpoch && b.dateEpoch) {
+                return b.dateEpoch - a.dateEpoch;
+            }
+
+            return 1;
+        })
+        .forEach(meal => {
+            if (offset <= index && index < limit) {
+                if (byComment === null && isEaten === null) {
+                    meals.push(meal);
+                } else if (byComment && meal.comment?.startsWith(byComment) && isEaten === null) {
+                    meals.push(meal);
+                } else if (byComment === null && isEaten && meal.eaten === isEaten) {
+                    meals.push(meal);
+                } else if (byComment && meal.comment?.startsWith(byComment) && isEaten && meal.eaten === isEaten) {
+                    meals.push(meal);
                 }
-            });
-        });
 
-    return meals;
-}
-
-export async function getStorageMealsByComment(comment: string): Promise<Meal[]> {
-    const meals: Meal[] = [];
-    await Storage
-        .keys()
-        .then(allKeys => {
-            allKeys.keys.forEach(key => {
-                if (key.indexOf('meal_') >= 0) {
-                    Storage
-                        .get({ key })
-                        .then(result => {
-                            try {
-                                if (result.value) {
-                                    const object = JSON.parse(result.value);
-                                    if (object.comment!.startsWith(comment)) {
-                                        meals.push(object);
-                                    }
-                                }
-                            }
-                            catch { }
-                        })
-                }
-            });
-        });
-
-    return meals;
-}
-
-export async function getStorageAllEatenMeals(): Promise<Meal[]> {
-    const meals: Meal[] = [];
-    await Storage
-        .keys()
-        .then(allKeys => {
-            allKeys.keys.forEach(key => {
-                if (key.indexOf('meal_') >= 0) {
-                    Storage
-                        .get({ key })
-                        .then(result => {
-                            try {
-                                if (result.value) {
-                                    const object = JSON.parse(result.value);
-                                    if (object.eaten) {
-                                        meals.push(object);
-                                    }
-                                }
-                            }
-                            catch { }
-                        })
-                }
-            });
-        });
-
-    return meals;
-}
-
-export async function getStorageAllMeals(): Promise<Meal[]> {
-    const meals: Meal[] = [];
-    await Storage
-        .keys()
-        .then(allKeys => {
-            allKeys.keys.forEach(key => {
-                if (key.indexOf('meal_') >= 0) {
-                    Storage
-                        .get({ key })
-                        .then(result => {
-                            try {
-                                if (result.value) {
-                                    const object = JSON.parse(result.value);
-                                    meals.push(object);
-                                }
-                            }
-                            catch { }
-                        })
-                }
-            });
+                index += 1;
+            }
         });
 
     return meals;

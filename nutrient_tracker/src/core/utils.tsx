@@ -1,9 +1,6 @@
-import { Plugins } from '@capacitor/core';
 import { ActionType, ActionState, ActionPayload } from "./action";
 import { Entity } from "./entity";
 import { State } from "./state";
-
-const { BackgroundTask } = Plugins;
 
 export const getLogger: (tag: string) =>
     (...args: any) =>

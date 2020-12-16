@@ -48,15 +48,15 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
             { comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price };
 
         if (editedMeal.id) {
-            mealContext.update_ && mealContext.update_(editedMeal).then(() => history.goBack());
+            mealContext.update && mealContext.update(editedMeal).then(() => history.goBack());
         }
         else {
-            mealContext.save_ && mealContext.save_(editedMeal).then(() => history.goBack());
+            mealContext.create && mealContext.create(editedMeal).then(() => history.goBack());
         }
     }
 
     const handleDeleteMeal = () => {
-        meal && meal.id && mealContext.delete_ && mealContext.delete_(meal.id).then(() => history.goBack());
+        meal && meal.id && mealContext.remove && mealContext.remove(meal.id).then(() => history.goBack());
     }
 
     const handleConflicts = () => {
