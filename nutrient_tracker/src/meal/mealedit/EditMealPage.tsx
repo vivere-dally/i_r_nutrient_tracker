@@ -1,10 +1,10 @@
-import { IonActionSheet, IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonImg, IonInput, IonItem, IonItemDivider, IonLabel, IonPage, IonToggle, IonToolbar } from '@ionic/react'
+import { IonActionSheet, IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonImg, IonInput, IonItem, IonLabel, IonPage, IonText, IonTitle, IonToggle, IonToolbar } from '@ionic/react'
 import { camera, constructSharp, trash, close } from 'ionicons/icons'
 import React from 'react'
 import { useContext, useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router'
 import { MyGoogleMap } from '../../core/components/MyGoogleMap'
-import { useLocation } from '../../core/location'
+import { MyModal } from '../../core/components/MyModal'
 import { usePhotoGallery } from '../../core/photo-gallery'
 import { getDateWithOffset, getLogger } from '../../core/utils'
 import { Meal } from '../meal'
@@ -20,7 +20,6 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     // States
     const mealContext = useContext(MealContext);
     const [takePhoto] = usePhotoGallery();
-    const [currentPosition] = useLocation();
     const [meal, setMeal] = useState<Meal>();
     const [comment, setComment] = useState<string>("");
     const [date, setDate] = useState<string>(new Date().toISOString());
@@ -32,7 +31,6 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     const [photoToDelete, setPhotoToDelete] = useState<string>();
     const [latitude, setLatitude] = useState<number>(46.9);
     const [longitude, setLongitude] = useState<number>(23.59);
-    const [isMapsOpen, setIsMapsOpen] = useState<boolean>(false);
 
     // Effects
     useEffect(() => {
@@ -88,6 +86,18 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
                     <IonButtons>
                         <IonBackButton text="Meals" defaultHref="/meals" />
                     </IonButtons>
+                    <IonTitle>
+                        <MyModal showModalText="Open Google Maps" closeModalText="Close Google Maps">
+                            <MyGoogleMap
+                                latitude={latitude}
+                                longitude={longitude}
+                                onMapClick={(location: any) => {
+                                    setLatitude(location.latLng.lat());
+                                    setLongitude(location.latLng.lng());
+                                }}
+                            />
+                        </MyModal>
+                    </IonTitle>
                     <IonButtons slot="end">
                         <IonButton onClick={handleSaveOrUpdateMeal}>Save</IonButton>
                     </IonButtons>
@@ -95,105 +105,86 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
             </IonHeader>
 
             <IonContent fullscreen>
+                <IonItem>
+                    <IonLabel>Comment</IonLabel>
+                    <IonInput type="text" value={comment} onIonChange={e => setComment(e.detail.value || '')} />
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>Date</IonLabel>
+                    <IonDatetime pickerFormat="MMM DD, YYYY HH:mm" displayFormat="MMM DD, YYYY HH:mm" value={date} onIonChange={e => setDate((e.detail.value === null || e.detail.value === undefined) ? new Date().toISOString() : new Date(e.detail.value).toISOString())} />
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>Foods</IonLabel>
+                    <IonInput type="text" value={foods} onIonChange={e => setFoods(e.detail.value || '')} />
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>IsEaten</IonLabel>
+                    <IonToggle checked={eaten} onIonChange={e => setEaten(e.detail.checked || false)} />
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>Price</IonLabel>
+                    <IonInput type="number" value={price} onIonChange={e => setPrice(Number(e.detail.value) || 0.0)} />
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>Latitude: {latitude}</IonLabel>
+                </IonItem>
+
+                <IonItem>
+                    <IonLabel>Longitude: {longitude}</IonLabel>
+                </IonItem>
+
+                <IonItem>
+                    <IonImg onClick={() => setPhotoToDelete(photo)} src={photo} alt="This meal has no photo..." />
+                    <IonLabel />
+                </IonItem>
+
                 {
-                    isMapsOpen && (
-                        <MyGoogleMap
-                            latitude={latitude}
-                            longitude={longitude}
-                            onMapClick={(location: any) => {
-                                setLatitude(location.latLng.lat());
-                                setLongitude(location.latLng.lng());
-                            }}
-                            onMarkerClick={() => setIsMapsOpen(false)}
-                        />
+                    hasConflict && (
+                        <IonFab slot="fixed" vertical="bottom" horizontal="start">
+                            <IonFabButton onClick={handleConflicts}>
+                                <IonIcon icon={constructSharp} />
+                            </IonFabButton>
+                        </IonFab>
                     )
                 }
-                {
-                    !isMapsOpen && (
-                        <>
-                            <IonItem>
-                                <IonLabel>Comment</IonLabel>
-                                <IonInput type="text" value={comment} onIonChange={e => setComment(e.detail.value || '')} />
-                            </IonItem>
 
-                            <IonItem>
-                                <IonLabel>Date</IonLabel>
-                                <IonDatetime pickerFormat="MMM DD, YYYY HH:mm" displayFormat="MMM DD, YYYY HH:mm" value={date} onIonChange={e => setDate((e.detail.value === null || e.detail.value === undefined) ? new Date().toISOString() : new Date(e.detail.value).toISOString())} />
-                            </IonItem>
+                <IonFab vertical="bottom" horizontal="center" slot="fixed">
+                    <IonFabButton onClick={() => handleTakePhoto()}>
+                        <IonIcon icon={camera} />
+                    </IonFabButton>
+                </IonFab>
 
-                            <IonItem>
-                                <IonLabel>Foods</IonLabel>
-                                <IonInput type="text" value={foods} onIonChange={e => setFoods(e.detail.value || '')} />
-                            </IonItem>
+                <IonFab slot="fixed" vertical="bottom" horizontal="end">
+                    <IonFabButton onClick={handleDeleteMeal}>
+                        <IonIcon icon={trash} />
+                    </IonFabButton>
+                </IonFab>
 
-                            <IonItem>
-                                <IonLabel>IsEaten</IonLabel>
-                                <IonToggle checked={eaten} onIonChange={e => setEaten(e.detail.checked || false)} />
-                            </IonItem>
-
-                            <IonItem>
-                                <IonLabel>Price</IonLabel>
-                                <IonInput type="number" value={price} onIonChange={e => setPrice(Number(e.detail.value) || 0.0)} />
-                            </IonItem>
-
-                            <IonItem onClick={() => setIsMapsOpen(true)}>
-                                <IonLabel>Latitude: {latitude}</IonLabel>
-                            </IonItem>
-
-                            <IonItem onClick={() => setIsMapsOpen(true)}>
-                                <IonLabel>Longitude: {longitude}</IonLabel>
-                            </IonItem>
-
-                            <IonItem>
-                                <IonImg onClick={() => setPhotoToDelete(photo)} src={photo} alt="This meal has no photo..." />
-                                <IonLabel />
-                            </IonItem>
-
-                            {
-                                hasConflict && (
-                                    <IonFab slot="fixed" vertical="bottom" horizontal="start">
-                                        <IonFabButton onClick={handleConflicts}>
-                                            <IonIcon icon={constructSharp} />
-                                        </IonFabButton>
-                                    </IonFab>
-                                )
+                <IonActionSheet
+                    isOpen={!!photoToDelete}
+                    buttons={[
+                        {
+                            text: 'Delete',
+                            role: 'destructive',
+                            icon: trash,
+                            handler: () => {
+                                setPhoto(undefined);
+                                setPhotoToDelete(undefined);
                             }
-
-                            <IonFab vertical="bottom" horizontal="center" slot="fixed">
-                                <IonFabButton onClick={() => handleTakePhoto()}>
-                                    <IonIcon icon={camera} />
-                                </IonFabButton>
-                            </IonFab>
-
-                            <IonFab slot="fixed" vertical="bottom" horizontal="end">
-                                <IonFabButton onClick={handleDeleteMeal}>
-                                    <IonIcon icon={trash} />
-                                </IonFabButton>
-                            </IonFab>
-
-                            <IonActionSheet
-                                isOpen={!!photoToDelete}
-                                buttons={[
-                                    {
-                                        text: 'Delete',
-                                        role: 'destructive',
-                                        icon: trash,
-                                        handler: () => {
-                                            setPhoto(undefined);
-                                            setPhotoToDelete(undefined);
-                                        }
-                                    },
-                                    {
-                                        text: 'Cancel',
-                                        role: 'cancel',
-                                        icon: close
-                                    }
-                                ]}
-                                onDidDismiss={() => setPhotoToDelete(undefined)}
-                            />
-                        </>
-                    )
-                }
+                        },
+                        {
+                            text: 'Cancel',
+                            role: 'cancel',
+                            icon: close
+                        }
+                    ]}
+                    onDidDismiss={() => setPhotoToDelete(undefined)}
+                />
             </IonContent>
         </IonPage>
     )
