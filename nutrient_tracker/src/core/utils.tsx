@@ -105,3 +105,25 @@ export function getDateWithOffset(date: string): string {
     var offset = new Date().getTimezoneOffset();
     return new Date(new Date(date).getTime() - offset * 60000).toISOString();
 }
+
+export function base64StringToBlob(
+    base64Data: string,
+    contentType: string,
+    sliceSize: number = 512
+): Blob {
+    const byteCharacters = atob(base64Data);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+
+    const blob = new Blob(byteArrays, { type: contentType });
+    return blob;
+};
