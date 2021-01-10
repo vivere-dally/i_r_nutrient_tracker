@@ -7,7 +7,6 @@ export interface Meal extends Entity<number> {
     foods?: string;
     eaten?: boolean;
     price?: number;
-    photo?: string;
     latitude?: number;
     longitude?: number;
     userId?: number;
@@ -24,7 +23,6 @@ export function compareMeal(a: Meal, b: Meal) {
         a.foods === b.foods &&
         a.eaten === b.eaten &&
         a.price === b.price &&
-        a.photo === b.photo &&
         a.latitude == b.latitude &&
         a.longitude == b.longitude &&
         a.userId === b.userId

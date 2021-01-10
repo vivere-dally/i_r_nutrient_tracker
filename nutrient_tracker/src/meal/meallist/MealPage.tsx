@@ -1,4 +1,4 @@
-import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonSelect, IonSelectOption, IonTitle, IonToast, IonToggle, IonToolbar } from "@ionic/react";
+import { createAnimation, IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonHeader, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList, IonLoading, IonPage, IonSearchbar, IonSelect, IonSelectOption, IonTitle, IonToast, IonToggle, IonToolbar } from "@ionic/react";
 import { add, cloudSharp, cloudOfflineSharp, filter } from "ionicons/icons";
 import React, { useContext, useEffect, useState } from "react";
 import { RouteComponentProps } from "react-router";
@@ -63,13 +63,32 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
         (e.target as HTMLIonInfiniteScrollElement).complete()
     }
 
+    function animate() {
+        const networkStatusConnectedIconElement = document.querySelector('.networkStatusConnectedIcon');
+        if (networkStatusConnectedIconElement) {
+            const networkStatusConnectedIconAnimation = createAnimation()
+                .addElement(networkStatusConnectedIconElement)
+                .duration(1500)
+                .iterations(Infinity)
+                .direction('alternate')
+                .keyframes([
+                    { offset: 0, transform: 'scale(1.5)', opacity: '1' },
+                    { offset: 1, transform: 'scale(1)', opacity: '0.7' },
+                ]);
+
+            networkStatusConnectedIconAnimation.play();
+        }
+    }
+
+    useEffect(animate, []);
+
     return (
         <IonPage id="meal-page">
             <IonHeader collapse="condense">
                 <IonToolbar>
                     <IonButtons slot="start">
                         {
-                            (networkStatusConnected && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudSharp} />)) ||
+                            (networkStatusConnected && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudSharp} className="networkStatusConnectedIcon" />)) ||
                             (!networkStatusConnected && (networkStatus.connectionType === 'none' || networkStatus.connectionType === 'unknown') && (<IonIcon style={{ "zoom": 2.0 }} icon={cloudOfflineSharp} />))
                         }
                         <IonLabel style={{ marginLeft: 10 }} >{networkStatus.connectionType}</IonLabel>

@@ -10,6 +10,7 @@ import { deleteMealById, deleteStoredMealById, getMealById, getMeals, saveMeal, 
 import { EntityState } from "../core/entity";
 import { newMealWebSocket, setAuthorizationToken } from "./meal-api";
 import { environment } from "../environments/environment";
+import { PhotoContext } from "../core/photo-provider";
 
 const log = getLogger('meal/meal-provider');
 interface MealState extends State<Meal, number> {
@@ -36,6 +37,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
     const [state, dispatch] = useReducer(reducer, mealInitialState);
     const { data, executing, actionType, actionError } = state;
     const authenticationContext = useContext(AuthenticationContext);
+    const photoContext = useContext(PhotoContext);
     const { networkStatus } = useNetworkStatus();
     const [page, setPage] = useState<number>(0);
     // const [key, setKey] = useState<string>('');
@@ -54,11 +56,11 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
 
     // Callbacks
     const create = useCallback<(meal: Meal) => Promise<any>>(saveMealCallback, []);
-    const read = useCallback<(mealId: number) => Promise<any>>(getMealByIdCallback, []);
+    const read = useCallback<(mealId: number) => Promise<any>>(getMealByIdCallback, [photoContext]);
     const update = useCallback<(meal: Meal) => Promise<any>>(updateMealCallback, []);
     const remove = useCallback<(mealId: number) => Promise<any>>(deleteMealCallback, []);
-    const removeFromState = useCallback<(mealId: number) => Promise<any>>(deleteMealCallback, []);
-    const get = useCallback<(cancelled: boolean, byComment: string | null, isEaten: boolean | null) => Promise<boolean>>(getMealsCallback, [authenticationContext, page, queryParameters]);
+    const removeFromState = useCallback<(mealId: number) => Promise<any>>(deleteMealFromStateCallback, []);
+    const get = useCallback<(cancelled: boolean, byComment: string | null, isEaten: boolean | null) => Promise<boolean>>(getMealsCallback, [authenticationContext, photoContext, page, queryParameters]);
 
     const value = { data, executing, actionType, actionError, create, read, update, remove, removeFromState, get };
     log('MealProvider - return');
@@ -88,6 +90,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             log('[getMealByIdCallback] Start.');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET_ONE });
             const meal: Meal = await getMealById(mealId);
+            photoContext.load && await photoContext.load(meal.userId!, meal.id!);
             log('[getMealByIdCallback] Success.');
             dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.GET_ONE, data: meal });
         } catch (error) {
@@ -125,7 +128,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
         try {
             log('[deleteMealCallback] Start.');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.DELETE });
-            const _meal: Meal | void = await deleteMealById(mealId);
+            await deleteMealById(mealId);
             log('[deleteMealCallback] Success.');
             dispatch({ actionState: ActionState.SUCCEEDED, actionType: ActionType.DELETE, data: { id: mealId } });
         } catch (error) {
@@ -155,6 +158,7 @@ export const MealProvider: React.FC<MealProviderProps> = ({ children }) => {
             log('[deleteMealCallback] Start.');
             dispatch({ actionState: ActionState.STARTED, actionType: ActionType.GET });
             const meals: Meal[] = await getMeals(currentPage, byComment, isEaten);
+            meals.forEach(async (meal) => { photoContext.load && await photoContext.load(meal.userId!, meal.id!); });
             log('[deleteMealCallback] Success.');
             pageSize = meals.length;
             if (!cancelled) {

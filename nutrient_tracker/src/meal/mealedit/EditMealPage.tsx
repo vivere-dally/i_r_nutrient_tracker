@@ -1,11 +1,12 @@
-import { IonActionSheet, IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonImg, IonInput, IonItem, IonLabel, IonPage, IonText, IonTitle, IonToggle, IonToolbar } from '@ionic/react'
+import { createAnimation, IonActionSheet, IonBackButton, IonButton, IonButtons, IonContent, IonDatetime, IonFab, IonFabButton, IonHeader, IonIcon, IonImg, IonInput, IonItem, IonLabel, IonPage, IonText, IonTitle, IonToggle, IonToolbar } from '@ionic/react'
 import { camera, constructSharp, trash, close } from 'ionicons/icons'
 import React from 'react'
 import { useContext, useEffect, useState } from 'react'
 import { RouteComponentProps } from 'react-router'
+import { AuthenticationContext } from '../../authentication/authentication-provider'
 import { MyGoogleMap } from '../../core/components/MyGoogleMap'
 import { MyModal } from '../../core/components/MyModal'
-import { usePhotoGallery } from '../../core/photo-gallery'
+import { PhotoContext, Photo } from '../../core/photo-provider'
 import { getDateWithOffset, getLogger } from '../../core/utils'
 import { Meal } from '../meal'
 import { MealContext } from '../meal-provider'
@@ -19,16 +20,18 @@ interface MealProps extends RouteComponentProps<{
 const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     // States
     const mealContext = useContext(MealContext);
-    const [takePhoto] = usePhotoGallery();
+    const photoContext = useContext(PhotoContext);
+    const authenticationContext = useContext(AuthenticationContext);
     const [meal, setMeal] = useState<Meal>();
+    const [mealId, setMealId] = useState<number>(Math.floor(Math.random() * 1000000000));
     const [comment, setComment] = useState<string>("");
     const [date, setDate] = useState<string>(new Date().toISOString());
     const [foods, setFoods] = useState<string>("");
     const [eaten, setEaten] = useState<boolean>(false);
     const [price, setPrice] = useState<number>(0.0);
     const [hasConflict, setHasConflict] = useState<boolean>(false);
-    const [photo, setPhoto] = useState<string>();
-    const [photoToDelete, setPhotoToDelete] = useState<string>();
+    const [photo, setPhoto] = useState<Photo | undefined>();
+    const [photoToDelete, setPhotoToDelete] = useState<Photo | undefined>();
     const [latitude, setLatitude] = useState<number>(46.9);
     const [longitude, setLongitude] = useState<number>(23.59);
 
@@ -39,13 +42,17 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
         const meal = mealContext.data?.find(it => it.id === Number(routeId));
         setMeal(meal);
         if (meal) {
+            setMealId(meal.id || Math.floor(Math.random() * 1000000000));
             setComment(meal.comment || "");
             setDate(meal.date || getDateWithOffset(new Date().toISOString()));
             setFoods(meal.foods || "");
             setEaten(meal.eaten || false);
             setPrice(meal.price || 0.0);
             setHasConflict(meal.hasConflict || false);
-            setPhoto(meal.photo!);
+            (async () => {
+                const photo: Photo | undefined = photoContext.read && await photoContext.read(authenticationContext.id!, mealId);
+                setPhoto(photo);
+            })();
             setLatitude(meal.latitude!);
             setLongitude(meal.longitude!);
         }
@@ -55,14 +62,14 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     const handleSaveOrUpdateMeal = () => {
         const actualDate = getDateWithOffset(date)
         const editedMeal = meal ?
-            { ...meal, comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price, photo: photo, latitude: latitude, longitude: longitude } :
-            { comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price, photo: photo, latitude: latitude, longitude: longitude };
+            { ...meal, comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price, latitude: latitude, longitude: longitude } :
+            { comment: comment, date: actualDate, foods: foods, eaten: eaten, price: price, latitude: latitude, longitude: longitude };
 
         if (editedMeal.id) {
             mealContext.update && mealContext.update(editedMeal).then(() => history.goBack());
         }
         else {
-            mealContext.create && mealContext.create(editedMeal).then(() => history.goBack());
+            mealContext.create && mealContext.create({ ...editedMeal, id: mealId }).then(() => history.goBack());
         }
     }
 
@@ -75,9 +82,44 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
     }
 
     const handleTakePhoto = async () => {
-        const photo: string = await takePhoto();
+        const photo: Photo | undefined = photoContext.take && await photoContext.take(authenticationContext.id!, mealId);
         setPhoto(photo);
     }
+
+    function animation() {
+        const involvedClasses: string[] = ['.comment', '.date', '.foods', '.isEaten', '.price', '.latitude', '.longitude'];
+        const animations = [];
+        let shouldPlay = true;
+        for (let index = 0; index < involvedClasses.length; index++) {
+            const element = document.querySelector(involvedClasses[index]);
+            if (!element) {
+                shouldPlay = false;
+                break;
+            }
+
+            animations.push(createAnimation()
+                .addElement(element)
+                .duration(1500)
+                // .iterations(Infinity)
+                .direction('reverse')
+                .keyframes([
+                    { offset: 0, transform: 'scale(1.1)', opacity: '1' },
+                    { offset: 1, transform: 'scale(1)', opacity: '0.7' },
+                ]));
+        }
+
+        if (shouldPlay) {
+            (async () => {
+                while (true) {
+                    for (let index = 0; index < animations.length; index++) {
+                        await animations[index].play();
+                    }
+                }
+            })();
+        }
+    }
+
+    useEffect(animation, []);
 
     return (
         <IonPage id="edit-meal-page">
@@ -106,40 +148,40 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
 
             <IonContent fullscreen>
                 <IonItem>
-                    <IonLabel>Comment</IonLabel>
+                    <IonLabel className="comment">Comment</IonLabel>
                     <IonInput type="text" value={comment} onIonChange={e => setComment(e.detail.value || '')} />
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>Date</IonLabel>
+                    <IonLabel className="date">Date</IonLabel>
                     <IonDatetime pickerFormat="MMM DD, YYYY HH:mm" displayFormat="MMM DD, YYYY HH:mm" value={date} onIonChange={e => setDate((e.detail.value === null || e.detail.value === undefined) ? new Date().toISOString() : new Date(e.detail.value).toISOString())} />
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>Foods</IonLabel>
+                    <IonLabel className="foods">Foods</IonLabel>
                     <IonInput type="text" value={foods} onIonChange={e => setFoods(e.detail.value || '')} />
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>IsEaten</IonLabel>
+                    <IonLabel className="isEaten">IsEaten</IonLabel>
                     <IonToggle checked={eaten} onIonChange={e => setEaten(e.detail.checked || false)} />
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>Price</IonLabel>
+                    <IonLabel className="price">Price</IonLabel>
                     <IonInput type="number" value={price} onIonChange={e => setPrice(Number(e.detail.value) || 0.0)} />
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>Latitude: {latitude}</IonLabel>
+                    <IonLabel className="latitude">Latitude: {latitude}</IonLabel>
                 </IonItem>
 
                 <IonItem>
-                    <IonLabel>Longitude: {longitude}</IonLabel>
+                    <IonLabel className="longitude">Longitude: {longitude}</IonLabel>
                 </IonItem>
 
                 <IonItem>
-                    <IonImg onClick={() => setPhotoToDelete(photo)} src={photo} alt="This meal has no photo..." />
+                    <IonImg onClick={() => setPhotoToDelete(photo)} src={photo?.webViewPath} alt="This meal has no photo..." />
                     <IonLabel />
                 </IonItem>
 
@@ -173,6 +215,7 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
                             role: 'destructive',
                             icon: trash,
                             handler: () => {
+                                photoContext.delete && photoContext.delete(photo?.userId!, photo?.id!);
                                 setPhoto(undefined);
                                 setPhotoToDelete(undefined);
                             }
