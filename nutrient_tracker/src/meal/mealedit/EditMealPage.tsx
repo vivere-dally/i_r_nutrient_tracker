@@ -100,7 +100,6 @@ const EditMealPage: React.FC<MealProps> = ({ history, match }) => {
             animations.push(createAnimation()
                 .addElement(element)
                 .duration(1500)
-                // .iterations(Infinity)
                 .direction('reverse')
                 .keyframes([
                     { offset: 0, transform: 'scale(1.1)', opacity: '1' },

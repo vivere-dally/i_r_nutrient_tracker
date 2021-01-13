@@ -80,7 +80,7 @@ const MealPage: React.FC<RouteComponentProps> = ({ history }) => {
         }
     }
 
-    useEffect(animate, []);
+    useEffect(animate, [networkStatus.connected]);
 
     return (
         <IonPage id="meal-page">
